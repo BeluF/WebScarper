@@ -5,17 +5,19 @@ Define todos los endpoints para gestión de recetas, scraping y exportación PDF
 """
 
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import obtener_db
 from app.schemas import (
     RecetaCrear, RecetaActualizar, RecetaRespuesta, 
-    RecetaListaRespuesta, ScrapingRespuesta, PDFMultipleRequest, HealthCheck
+    RecetaListaRespuesta, ScrapingRespuesta, PDFMultipleRequest, HealthCheck,
+    BusquedaRequest, BusquedaIniciadaResponse, BusquedaProgreso, BusquedaResultado
 )
 from app.services.recipe_service import RecipeService
 from app.services.pdf_generator import PDFGenerator
+from app.services.busqueda_service import BusquedaService
 
 router = APIRouter(prefix="/api", tags=["recetas"])
 
@@ -267,3 +269,145 @@ def obtener_sitios_soportados():
     """
     from app.scraper.scraper_factory import ScraperFactory
     return {"sitios": ScraperFactory.obtener_sitios_soportados()}
+
+
+# ============================================
+# Endpoints de Búsqueda Automática
+# ============================================
+
+@router.post("/busqueda/automatica", response_model=BusquedaIniciadaResponse)
+async def iniciar_busqueda_automatica(
+    datos: BusquedaRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(obtener_db)
+):
+    """
+    Inicia una búsqueda automática de recetas en los sitios seleccionados.
+    
+    La búsqueda se ejecuta en segundo plano. Use el endpoint de progreso
+    para seguir el estado de la búsqueda.
+    
+    Args:
+        datos: Parámetros de la búsqueda (palabra clave, filtros, sitios, límite).
+        background_tasks: Tareas en segundo plano de FastAPI.
+        db: Sesión de base de datos.
+        
+    Returns:
+        ID de la búsqueda y tipo de búsqueda (paralelo/secuencial).
+    """
+    service = BusquedaService(db)
+    
+    # Determinar límite (usar 500 si es 0 o None)
+    limite = datos.limite if datos.limite and datos.limite > 0 else 500
+    
+    # Iniciar la búsqueda
+    busqueda_id = service.iniciar_busqueda_automatica(
+        palabra_clave=datos.palabra_clave,
+        filtros=datos.filtros.model_dump() if datos.filtros else {},
+        sitios=datos.sitios or ["todos"],
+        limite=limite
+    )
+    
+    tipo_busqueda = service.obtener_tipo_busqueda(busqueda_id)
+    
+    # Agregar la tarea de búsqueda al background
+    background_tasks.add_task(service.ejecutar_busqueda, busqueda_id)
+    
+    return BusquedaIniciadaResponse(
+        busqueda_id=busqueda_id,
+        mensaje="Búsqueda iniciada correctamente",
+        tipo_busqueda=tipo_busqueda
+    )
+
+
+@router.get("/busqueda/{busqueda_id}/progreso", response_model=BusquedaProgreso)
+def obtener_progreso_busqueda(
+    busqueda_id: str,
+    db: Session = Depends(obtener_db)
+):
+    """
+    Obtiene el progreso actual de una búsqueda automática.
+    
+    Use este endpoint con polling (cada 2-3 segundos) para
+    actualizar la UI con el progreso en tiempo real.
+    
+    Args:
+        busqueda_id: ID de la búsqueda.
+        db: Sesión de base de datos.
+        
+    Returns:
+        Estado de progreso de la búsqueda.
+        
+    Raises:
+        HTTPException: Si la búsqueda no existe.
+    """
+    service = BusquedaService(db)
+    progreso = service.obtener_progreso(busqueda_id)
+    
+    if not progreso:
+        raise HTTPException(
+            status_code=404,
+            detail="Búsqueda no encontrada"
+        )
+    
+    return BusquedaProgreso(**progreso)
+
+
+@router.get("/busqueda/{busqueda_id}/resultado", response_model=BusquedaResultado)
+def obtener_resultado_busqueda(
+    busqueda_id: str,
+    db: Session = Depends(obtener_db)
+):
+    """
+    Obtiene el resultado final de una búsqueda completada.
+    
+    Args:
+        busqueda_id: ID de la búsqueda.
+        db: Sesión de base de datos.
+        
+    Returns:
+        Resultado final con estadísticas completas.
+        
+    Raises:
+        HTTPException: Si la búsqueda no existe.
+    """
+    service = BusquedaService(db)
+    resultado = service.obtener_resultado(busqueda_id)
+    
+    if not resultado:
+        raise HTTPException(
+            status_code=404,
+            detail="Búsqueda no encontrada"
+        )
+    
+    return BusquedaResultado(**resultado)
+
+
+@router.post("/busqueda/{busqueda_id}/cancelar")
+def cancelar_busqueda(
+    busqueda_id: str,
+    db: Session = Depends(obtener_db)
+):
+    """
+    Cancela una búsqueda en progreso.
+    
+    Args:
+        busqueda_id: ID de la búsqueda a cancelar.
+        db: Sesión de base de datos.
+        
+    Returns:
+        Mensaje de confirmación.
+        
+    Raises:
+        HTTPException: Si la búsqueda no existe o ya terminó.
+    """
+    service = BusquedaService(db)
+    cancelado = service.cancelar_busqueda(busqueda_id)
+    
+    if not cancelado:
+        raise HTTPException(
+            status_code=400,
+            detail="No se pudo cancelar la búsqueda. Puede que no exista o ya haya terminado."
+        )
+    
+    return {"mensaje": "Búsqueda cancelada exitosamente"}

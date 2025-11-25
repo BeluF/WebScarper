@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import RecipePage from './pages/RecipePage';
+import BusquedaAutomatica from './pages/BusquedaAutomatica';
 
 /**
  * Componente principal de la aplicación.
@@ -16,6 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/receta/:id" element={<RecipePage />} />
+            <Route path="/busqueda-automatica" element={<BusquedaAutomatica />} />
           </Routes>
         </main>
         <Toaster 

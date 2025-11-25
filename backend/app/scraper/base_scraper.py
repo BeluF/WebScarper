@@ -222,3 +222,88 @@ class BaseScraper(ABC):
             return textos
         except Exception:
             return []
+    
+    async def buscar_recetas(
+        self,
+        palabra_clave: Optional[str] = None,
+        filtros: Optional[dict] = None,
+        limite: int = 50
+    ) -> List[dict]:
+        """
+        Busca recetas en el sitio según los criterios dados.
+        
+        Este método navega a la página de búsqueda del sitio y extrae
+        una lista de URLs de recetas que coinciden con los criterios.
+        
+        Args:
+            palabra_clave: Texto a buscar (opcional, si es None busca recetas populares).
+            filtros: Diccionario con filtros dietéticos:
+                     {"sin_tacc": bool, "vegetariana": bool, "vegana": bool}
+            limite: Cantidad máxima de recetas a retornar.
+            
+        Returns:
+            Lista de diccionarios con datos básicos de cada receta encontrada:
+            [{"url": str, "titulo": str, "imagen_preview": str}, ...]
+        """
+        from playwright.async_api import async_playwright
+        
+        await self._esperar_rate_limit()
+        
+        async with async_playwright() as playwright:
+            browser, page = await self._crear_contexto_playwright(playwright)
+            
+            try:
+                # Construir y navegar a la URL de búsqueda
+                url_busqueda = self._construir_url_busqueda(palabra_clave, filtros)
+                await page.goto(url_busqueda, wait_until="domcontentloaded")
+                await asyncio.sleep(2)
+                
+                # Extraer la lista de recetas encontradas
+                recetas = await self._extraer_lista_recetas(page, limite)
+                return recetas
+            except Exception as e:
+                # Retornar lista vacía si hay error (el servicio manejará los errores)
+                return []
+            finally:
+                await browser.close()
+    
+    def _construir_url_busqueda(
+        self, 
+        palabra_clave: Optional[str] = None,
+        filtros: Optional[dict] = None
+    ) -> str:
+        """
+        Construye la URL de búsqueda para el sitio.
+        
+        Cada scraper debe sobrescribir este método para generar
+        la URL de búsqueda específica del sitio.
+        
+        Args:
+            palabra_clave: Texto a buscar.
+            filtros: Filtros dietéticos a aplicar.
+            
+        Returns:
+            URL de búsqueda del sitio.
+        """
+        # Implementación por defecto - cada scraper puede sobrescribir
+        dominio = self.dominios_soportados[0] if self.dominios_soportados else ""
+        if palabra_clave:
+            return f"https://{dominio}/search?q={palabra_clave}"
+        return f"https://{dominio}/"
+    
+    async def _extraer_lista_recetas(self, page, limite: int) -> List[dict]:
+        """
+        Extrae la lista de recetas de una página de resultados.
+        
+        Cada scraper debe sobrescribir este método para extraer
+        los datos específicos de su sitio.
+        
+        Args:
+            page: Página de Playwright con resultados de búsqueda.
+            limite: Cantidad máxima de recetas a extraer.
+            
+        Returns:
+            Lista de diccionarios con URL, título e imagen de cada receta.
+        """
+        # Implementación por defecto - cada scraper debe sobrescribir
+        return []

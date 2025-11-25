@@ -10,7 +10,11 @@ import {
   RecetaActualizar,
   FiltrosReceta,
   SitioSoportado,
-  HealthCheck
+  HealthCheck,
+  BusquedaRequest,
+  BusquedaIniciadaResponse,
+  BusquedaProgreso,
+  BusquedaResultado
 } from '../types/recipe';
 
 // Configurar la URL base de la API
@@ -125,4 +129,57 @@ export function descargarArchivo(blob: Blob, nombreArchivo: string): void {
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
+}
+
+// ============================================
+// API de Búsqueda Automática de Recetas
+// ============================================
+
+/**
+ * Inicia una búsqueda automática de recetas.
+ */
+export async function iniciarBusquedaAutomatica(
+  request: BusquedaRequest
+): Promise<BusquedaIniciadaResponse> {
+  const response = await api.post<BusquedaIniciadaResponse>(
+    '/busqueda/automatica',
+    request
+  );
+  return response.data;
+}
+
+/**
+ * Obtiene el progreso de una búsqueda en curso.
+ */
+export async function obtenerProgresoBusqueda(
+  busquedaId: string
+): Promise<BusquedaProgreso> {
+  const response = await api.get<BusquedaProgreso>(
+    `/busqueda/${busquedaId}/progreso`
+  );
+  return response.data;
+}
+
+/**
+ * Obtiene el resultado final de una búsqueda completada.
+ */
+export async function obtenerResultadoBusqueda(
+  busquedaId: string
+): Promise<BusquedaResultado> {
+  const response = await api.get<BusquedaResultado>(
+    `/busqueda/${busquedaId}/resultado`
+  );
+  return response.data;
+}
+
+/**
+ * Cancela una búsqueda en progreso.
+ */
+export async function cancelarBusqueda(
+  busquedaId: string
+): Promise<{ mensaje: string }> {
+  const response = await api.post<{ mensaje: string }>(
+    `/busqueda/${busquedaId}/cancelar`
+  );
+  return response.data;
 }
