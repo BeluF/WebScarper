@@ -20,6 +20,13 @@ const Navbar: React.FC = () => {
             >
               Mis Recetas
             </Link>
+            <Link 
+              to="/busqueda-automatica" 
+              className="text-white hover:text-primary-200 transition-colors flex items-center gap-1"
+            >
+              <span>🔍</span>
+              Búsqueda Automática
+            </Link>
           </div>
         </div>
       </div>

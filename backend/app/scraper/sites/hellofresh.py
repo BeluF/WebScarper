@@ -4,7 +4,8 @@ Scraper para HelloFresh (hellofresh.com).
 Servicio de kits de comida con recetas detalladas.
 """
 
-from typing import List
+from typing import List, Optional
+from urllib.parse import quote
 from app.scraper.base_scraper import BaseScraper, RecetaScraped
 
 
@@ -17,6 +18,48 @@ class HelloFreshScraper(BaseScraper):
     
     nombre_sitio = "HelloFresh"
     dominios_soportados = ["hellofresh.com", "hellofresh.es", "hellofresh.com.ar"]
+    
+    def _construir_url_busqueda(
+        self, 
+        palabra_clave: Optional[str] = None,
+        filtros: Optional[dict] = None
+    ) -> str:
+        """Construye la URL de búsqueda para HelloFresh."""
+        if palabra_clave:
+            query = quote(palabra_clave)
+            return f"https://www.hellofresh.com/recipes/search?q={query}"
+        return "https://www.hellofresh.com/recipes"
+    
+    async def _extraer_lista_recetas(self, page, limite: int) -> List[dict]:
+        """Extrae la lista de recetas de la página de búsqueda."""
+        recetas = []
+        selectores = ['a[href*="/recipes/"]', '[data-test-id*="recipe-card"] a']
+        
+        for selector in selectores:
+            try:
+                elementos = await page.query_selector_all(selector)
+                for elemento in elementos[:limite]:
+                    try:
+                        href = await elemento.get_attribute("href")
+                        if not href or "/recipes/" not in href:
+                            continue
+                        if href.startswith("/"):
+                            href = f"https://www.hellofresh.com{href}"
+                        titulo_elem = await elemento.query_selector('h3, .recipe-card-title')
+                        titulo = ""
+                        if titulo_elem:
+                            titulo = (await titulo_elem.inner_text()).strip()
+                        if href:
+                            recetas.append({"url": href, "titulo": titulo, "imagen_preview": ""})
+                        if len(recetas) >= limite:
+                            break
+                    except Exception:
+                        continue
+                if recetas:
+                    break
+            except Exception:
+                continue
+        return recetas[:limite]
     
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """

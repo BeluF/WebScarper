@@ -70,3 +70,64 @@ export interface HealthCheck {
   status: string;
   version: string;
 }
+
+// ============================================
+// Tipos para Búsqueda Automática de Recetas
+// ============================================
+
+/** Filtros dietéticos para búsqueda automática */
+export interface FiltrosDieteticos {
+  sin_tacc: boolean;
+  vegetariana: boolean;
+  vegana: boolean;
+}
+
+/** Request para iniciar búsqueda automática */
+export interface BusquedaRequest {
+  palabra_clave?: string | null;
+  filtros: FiltrosDieteticos;
+  sitios: string[];
+  limite: number;
+}
+
+/** Respuesta al iniciar una búsqueda */
+export interface BusquedaIniciadaResponse {
+  busqueda_id: string;
+  mensaje: string;
+  tipo_busqueda: 'paralelo' | 'secuencial';
+}
+
+/** Estado de búsqueda para un sitio */
+export interface EstadoSitio {
+  nombre: string;
+  estado: 'pendiente' | 'en_progreso' | 'completado' | 'error';
+  encontradas: number;
+  nuevas: number;
+  duplicadas: number;
+  error_mensaje?: string | null;
+}
+
+/** Progreso de una búsqueda en curso */
+export interface BusquedaProgreso {
+  busqueda_id: string;
+  estado: 'en_progreso' | 'completado' | 'error' | 'cancelado';
+  progreso_porcentaje: number;
+  sitios: EstadoSitio[];
+  total_encontradas: number;
+  total_nuevas: number;
+  total_duplicadas: number;
+  errores: string[];
+  tiempo_transcurrido?: number | null;
+}
+
+/** Resultado final de una búsqueda */
+export interface BusquedaResultado {
+  busqueda_id: string;
+  estado: 'completado' | 'error' | 'cancelado';
+  total_encontradas: number;
+  total_nuevas: number;
+  total_duplicadas: number;
+  sitios: EstadoSitio[];
+  errores: string[];
+  tiempo_total: number;
+}

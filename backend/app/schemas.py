@@ -87,3 +87,84 @@ class HealthCheck(BaseModel):
     
     status: str = Field(..., description="Estado del servicio")
     version: str = Field(..., description="Versión de la API")
+
+
+# ============================================
+# Schemas para Búsqueda Automática de Recetas
+# ============================================
+
+class FiltrosDieteticos(BaseModel):
+    """Filtros dietéticos para la búsqueda automática."""
+    
+    sin_tacc: bool = Field(False, description="Filtrar recetas sin TACC")
+    vegetariana: bool = Field(False, description="Filtrar recetas vegetarianas")
+    vegana: bool = Field(False, description="Filtrar recetas veganas")
+
+
+class BusquedaRequest(BaseModel):
+    """Schema para iniciar una búsqueda automática de recetas."""
+    
+    palabra_clave: Optional[str] = Field(
+        None, 
+        description="Palabra clave a buscar (opcional, vacío busca todas)"
+    )
+    filtros: FiltrosDieteticos = Field(
+        default_factory=FiltrosDieteticos,
+        description="Filtros dietéticos a aplicar"
+    )
+    sitios: List[str] = Field(
+        default=["todos"],
+        description="Lista de sitios donde buscar o ['todos']"
+    )
+    limite: int = Field(
+        default=500,
+        ge=1,
+        le=1000,
+        description="Límite de recetas a buscar (default 500)"
+    )
+
+
+class BusquedaIniciadaResponse(BaseModel):
+    """Respuesta al iniciar una búsqueda automática."""
+    
+    busqueda_id: str = Field(..., description="ID único de la búsqueda")
+    mensaje: str = Field(..., description="Mensaje informativo")
+    tipo_busqueda: str = Field(..., description="'paralelo' o 'secuencial'")
+
+
+class EstadoSitio(BaseModel):
+    """Estado de búsqueda para un sitio específico."""
+    
+    nombre: str = Field(..., description="Nombre del sitio")
+    estado: str = Field(..., description="pendiente, en_progreso, completado, error")
+    encontradas: int = Field(0, description="Total de recetas encontradas")
+    nuevas: int = Field(0, description="Recetas nuevas guardadas")
+    duplicadas: int = Field(0, description="Recetas duplicadas omitidas")
+    error_mensaje: Optional[str] = Field(None, description="Mensaje de error si falló")
+
+
+class BusquedaProgreso(BaseModel):
+    """Estado de progreso de una búsqueda en curso."""
+    
+    busqueda_id: str = Field(..., description="ID de la búsqueda")
+    estado: str = Field(..., description="en_progreso, completado, error, cancelado")
+    progreso_porcentaje: int = Field(0, description="Porcentaje de progreso (0-100)")
+    sitios: List[EstadoSitio] = Field(default_factory=list, description="Estado por sitio")
+    total_encontradas: int = Field(0, description="Total de recetas encontradas")
+    total_nuevas: int = Field(0, description="Total de recetas nuevas guardadas")
+    total_duplicadas: int = Field(0, description="Total de recetas duplicadas")
+    errores: List[str] = Field(default_factory=list, description="Lista de errores")
+    tiempo_transcurrido: Optional[float] = Field(None, description="Tiempo en segundos")
+
+
+class BusquedaResultado(BaseModel):
+    """Resultado final de una búsqueda completada."""
+    
+    busqueda_id: str = Field(..., description="ID de la búsqueda")
+    estado: str = Field(..., description="completado, error, cancelado")
+    total_encontradas: int = Field(0, description="Total de recetas encontradas")
+    total_nuevas: int = Field(0, description="Total de recetas nuevas guardadas")
+    total_duplicadas: int = Field(0, description="Total de recetas duplicadas")
+    sitios: List[EstadoSitio] = Field(default_factory=list, description="Resumen por sitio")
+    errores: List[str] = Field(default_factory=list, description="Errores durante la búsqueda")
+    tiempo_total: float = Field(0, description="Tiempo total en segundos")
