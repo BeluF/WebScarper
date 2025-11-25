@@ -16,7 +16,7 @@ class SoyCeliacoScraper(BaseScraper):
     """
     
     nombre_sitio = "Soy Celíaco No Extraterrestre"
-    dominios_soportados = ["soyceliaconoextraterrestre.com", "soyceli"]
+    dominios_soportados = ["soyceliaconoextraterrestre.com"]
     
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """
