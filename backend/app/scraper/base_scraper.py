@@ -14,6 +14,38 @@ import re
 from app.config import SCRAPER_TIMEOUT, SCRAPER_HEADLESS, RATE_LIMIT_DELAY
 
 
+# Constantes para detección de idioma
+PALABRAS_ESPANOL = [
+    'preparación', 'ingredientes', 'minutos', 'cocinar', 
+    'mezclar', 'añadir', 'hervir', 'porciones', 'tiempo',
+    'receta', 'preparar', 'agregar', 'cucharada', 'taza',
+    'horno', 'fuego', 'sartén', 'olla', 'picar', 'cortar'
+]
+
+PALABRAS_INGLES = [
+    'preparation', 'ingredients', 'minutes', 'cook', 
+    'mix', 'add', 'boil', 'servings', 'time',
+    'recipe', 'prepare', 'tablespoon', 'cup',
+    'oven', 'heat', 'pan', 'pot', 'chop', 'cut'
+]
+
+# Constantes para separación de ingredientes y pasos
+# Longitud máxima de texto para considerarse ingrediente con cantidad
+LONGITUD_MAX_INGREDIENTE_CON_CANTIDAD = 100
+# Longitud mínima para considerarse un paso (texto largo)
+LONGITUD_MIN_PASO = 80
+# Longitud máxima para considerarse ingrediente corto
+LONGITUD_MAX_INGREDIENTE_CORTO = 50
+
+# Verbos comunes en pasos de cocina (español)
+VERBOS_COCINA = [
+    'mezclar', 'cocinar', 'hornear', 'agregar', 'añadir', 'batir', 
+    'freír', 'hervir', 'cortar', 'picar', 'revolver', 'calentar',
+    'dejar', 'colocar', 'poner', 'servir', 'decorar', 'reservar',
+    'incorporar', 'salpimentar', 'precalentar', 'retirar', 'escurrir'
+]
+
+
 def validar_receta(receta: dict) -> Tuple[bool, str]:
     """
     Valida que una receta tenga los datos mínimos requeridos.
@@ -63,19 +95,10 @@ def detectar_idioma(texto: str) -> str:
     Returns:
         'es' para español, 'en' para inglés, 'desconocido' si no se puede determinar.
     """
-    palabras_espanol = ['preparación', 'ingredientes', 'minutos', 'cocinar', 
-                        'mezclar', 'añadir', 'hervir', 'porciones', 'tiempo',
-                        'receta', 'preparar', 'agregar', 'cucharada', 'taza',
-                        'horno', 'fuego', 'sartén', 'olla', 'picar', 'cortar']
-    palabras_ingles = ['preparation', 'ingredients', 'minutes', 'cook', 
-                       'mix', 'add', 'boil', 'servings', 'time',
-                       'recipe', 'prepare', 'tablespoon', 'cup',
-                       'oven', 'heat', 'pan', 'pot', 'chop', 'cut']
-    
     texto_lower = texto.lower()
     
-    count_es = sum(1 for p in palabras_espanol if p in texto_lower)
-    count_en = sum(1 for p in palabras_ingles if p in texto_lower)
+    count_es = sum(1 for p in PALABRAS_ESPANOL if p in texto_lower)
+    count_en = sum(1 for p in PALABRAS_INGLES if p in texto_lower)
     
     if count_es > count_en:
         return 'es'
@@ -98,17 +121,11 @@ def separar_ingredientes_y_pasos(items: List[str]) -> Tuple[List[str], List[str]
     Returns:
         tuple: (ingredientes, pasos)
     """
-    # Patrones para detectar ingredientes
+    # Patrones para detectar ingredientes (incluye unidades métricas comunes)
     patron_cantidad = re.compile(
-        r'\d+\s*(g|kg|ml|l|cucharada|cucharadita|taza|unidad|diente|pizca|gramo|kilo|litro|cc|oz|lb)',
+        r'\d+\s*(g|kg|ml|l|cucharada|cucharadita|taza|unidad|diente|pizca|gramo|kilo|litro|cc)',
         re.IGNORECASE
     )
-    
-    # Verbos comunes en pasos de cocina
-    verbos_cocina = ['mezclar', 'cocinar', 'hornear', 'agregar', 'añadir', 'batir', 
-                     'freír', 'hervir', 'cortar', 'picar', 'revolver', 'calentar',
-                     'dejar', 'colocar', 'poner', 'servir', 'decorar', 'reservar',
-                     'incorporar', 'salpimentar', 'precalentar', 'retirar', 'escurrir']
     
     ingredientes = []
     pasos = []
@@ -121,13 +138,13 @@ def separar_ingredientes_y_pasos(items: List[str]) -> Tuple[List[str], List[str]
             continue
             
         # Si es corto y tiene cantidad → ingrediente
-        if len(item) < 100 and patron_cantidad.search(item):
+        if len(item) < LONGITUD_MAX_INGREDIENTE_CON_CANTIDAD and patron_cantidad.search(item):
             ingredientes.append(item)
         # Si es largo o tiene verbos de cocina → paso
-        elif len(item) > 80 or any(verbo in item.lower() for verbo in verbos_cocina):
+        elif len(item) > LONGITUD_MIN_PASO or any(verbo in item.lower() for verbo in VERBOS_COCINA):
             pasos.append(item)
         # Si es muy corto, probablemente ingrediente
-        elif len(item) < 50:
+        elif len(item) < LONGITUD_MAX_INGREDIENTE_CORTO:
             ingredientes.append(item)
         else:
             pasos.append(item)

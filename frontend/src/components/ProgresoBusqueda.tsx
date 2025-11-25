@@ -58,7 +58,7 @@ const ProgresoBusqueda: React.FC<ProgresoBusquedaProps> = ({ progreso, onCancela
         if (descartadas > 0) {
           return `${estado.encontradas} recetas (${estado.nuevas} nuevas, ${estado.duplicadas} dup., ${descartadas} desc.)`;
         }
-        return `${estado.encontradas} recetas (${estado.nuevas} nuevas, ${estado.duplicadas} duplicadas)`;
+        return `${estado.encontradas} recetas (${estado.nuevas} nuevas, ${estado.duplicadas} dup.)`;
       }
       case 'error':
         return estado.error_mensaje || 'Error desconocido';
