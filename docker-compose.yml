@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Backend - FastAPI con Playwright
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: webscarper-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/recetario.db
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:80
+      - SCRAPER_HEADLESS=true
+      - API_DEBUG=false
+    volumes:
+      - ./data:/app/data
+      - pdf_temp:/tmp/recetario_pdfs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend - React con Vite (producción con nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: webscarper-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pdf_temp:

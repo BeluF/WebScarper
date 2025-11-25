@@ -1,0 +1,65 @@
+# Dependencias
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Entornos virtuales
+venv/
+env/
+.env
+.venv/
+
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# PDFs temporales
+/tmp/recetario_pdfs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archivos de compilación
+*.o
+*.so
+*.dll
+
+# Caché
+.cache/
+*.cache
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+
+# Build del frontend
+frontend/dist/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Datos locales
+data/
+
+# Archivos de proxies (pueden contener datos sensibles)
+proxies.txt
