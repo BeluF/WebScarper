@@ -53,7 +53,7 @@ const ResultadoBusqueda: React.FC<ResultadoBusquedaProps> = ({ resultado, onNuev
           Se encontraron <span className="font-bold text-primary-600">{resultado.total_encontradas}</span> recetas en total:
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg border-2 border-green-200 text-center">
             <div className="text-3xl font-bold text-green-600">📥 {resultado.total_nuevas}</div>
             <div className="text-sm text-gray-600 mt-1">recetas nuevas guardadas</div>
@@ -61,7 +61,21 @@ const ResultadoBusqueda: React.FC<ResultadoBusquedaProps> = ({ resultado, onNuev
           
           <div className="bg-white p-4 rounded-lg border-2 border-amber-200 text-center">
             <div className="text-3xl font-bold text-amber-600">🔄 {resultado.total_duplicadas}</div>
-            <div className="text-sm text-gray-600 mt-1">recetas ya existían (omitidas)</div>
+            <div className="text-sm text-gray-600 mt-1">recetas ya existían</div>
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border-2 border-orange-200 text-center">
+            <div className="text-3xl font-bold text-orange-500">
+              ⚠️ {(resultado.total_descartadas_vacias || 0) + (resultado.total_descartadas_idioma || 0)}
+            </div>
+            <div className="text-sm text-gray-600 mt-1">
+              descartadas
+              {((resultado.total_descartadas_vacias || 0) > 0 || (resultado.total_descartadas_idioma || 0) > 0) && (
+                <span className="block text-xs text-gray-400">
+                  ({resultado.total_descartadas_vacias || 0} vacías, {resultado.total_descartadas_idioma || 0} en inglés)
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="bg-white p-4 rounded-lg border-2 border-red-200 text-center">
@@ -79,28 +93,34 @@ const ResultadoBusqueda: React.FC<ResultadoBusquedaProps> = ({ resultado, onNuev
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-700 mb-3">Desglose por sitio:</h3>
         <div className="space-y-2">
-          {resultado.sitios.map((sitio) => (
-            <div
-              key={sitio.nombre}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-            >
-              <div className="flex items-center gap-2">
-                <span>{sitio.estado === 'completado' ? '✅' : sitio.estado === 'error' ? '❌' : '⏹️'}</span>
-                <span className="font-medium">{sitio.nombre}</span>
+          {resultado.sitios.map((sitio) => {
+            const descartadas = (sitio.descartadas_vacias || 0) + (sitio.descartadas_idioma || 0);
+            return (
+              <div
+                key={sitio.nombre}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{sitio.estado === 'completado' ? '✅' : sitio.estado === 'error' ? '❌' : '⏹️'}</span>
+                  <span className="font-medium">{sitio.nombre}</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {sitio.estado === 'error' ? (
+                    <span className="text-red-600">{sitio.error_mensaje || 'Error'}</span>
+                  ) : (
+                    <span>
+                      {sitio.encontradas} encontradas • 
+                      <span className="text-green-600"> {sitio.nuevas} nuevas</span> • 
+                      <span className="text-amber-600"> {sitio.duplicadas} dup.</span>
+                      {descartadas > 0 && (
+                        <span className="text-orange-500"> • {descartadas} desc.</span>
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-600">
-                {sitio.estado === 'error' ? (
-                  <span className="text-red-600">{sitio.error_mensaje || 'Error'}</span>
-                ) : (
-                  <span>
-                    {sitio.encontradas} encontradas • 
-                    <span className="text-green-600"> {sitio.nuevas} nuevas</span> • 
-                    <span className="text-amber-600"> {sitio.duplicadas} duplicadas</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

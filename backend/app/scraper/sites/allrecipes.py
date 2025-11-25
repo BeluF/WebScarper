@@ -1,7 +1,8 @@
 """
-Scraper para AllRecipes (allrecipes.com).
+Scraper para AllRecipes (allrecipes.com.mx / recetas.allrecipes.com).
 
 Sitio internacional de recetas con versión en español.
+Usa las versiones en español del sitio.
 """
 
 from typing import List, Optional
@@ -13,22 +14,28 @@ class AllRecipesScraper(BaseScraper):
     """
     Scraper especializado para AllRecipes.
     
-    Extrae recetas del sitio allrecipes.com.
+    Extrae recetas de la versión en español de AllRecipes.
     """
     
     nombre_sitio = "AllRecipes"
-    dominios_soportados = ["allrecipes.com"]
+    # Priorizamos los dominios en español
+    dominios_soportados = ["allrecipes.com.mx", "recetas.allrecipes.com", "allrecipes.com"]
     
     def _construir_url_busqueda(
         self, 
         palabra_clave: Optional[str] = None,
         filtros: Optional[dict] = None
     ) -> str:
-        """Construye la URL de búsqueda para AllRecipes."""
+        """
+        Construye la URL de búsqueda para AllRecipes.
+        
+        Usa la versión mexicana del sitio para obtener recetas en español.
+        """
+        # Usar la versión en español (México)
         if palabra_clave:
             query = quote(palabra_clave)
-            return f"https://www.allrecipes.com/search?q={query}"
-        return "https://www.allrecipes.com/recipes/"
+            return f"https://www.allrecipes.com.mx/recetas/buscar/?texto={query}"
+        return "https://www.allrecipes.com.mx/recetas/"
     
     async def _extraer_lista_recetas(self, page, limite: int) -> List[dict]:
         """Extrae la lista de recetas de la página de búsqueda."""

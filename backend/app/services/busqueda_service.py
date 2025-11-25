@@ -8,11 +8,29 @@ con soporte para búsqueda paralela o secuencial según el límite.
 import asyncio
 import uuid
 import time
+import logging
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 
 from app.models import Receta
 from app.scraper.scraper_factory import ScraperFactory
+
+
+# Configurar logger para el servicio
+logger = logging.getLogger(__name__)
+
+
+class RecetaDescartadaError(Exception):
+    """Excepción para recetas que no pasan la validación."""
+    
+    def __init__(self, mensaje: str, tipo: str = "invalida"):
+        """
+        Args:
+            mensaje: Descripción del error.
+            tipo: Tipo de descarte ('invalida' o 'idioma').
+        """
+        super().__init__(mensaje)
+        self.tipo = tipo
 
 
 # Almacén en memoria para el estado de las búsquedas activas
@@ -101,6 +119,8 @@ class BusquedaService:
                     "encontradas": 0,
                     "nuevas": 0,
                     "duplicadas": 0,
+                    "descartadas_vacias": 0,
+                    "descartadas_idioma": 0,
                     "error_mensaje": None
                 }
                 for nombre in sitios_a_buscar
@@ -108,6 +128,8 @@ class BusquedaService:
             "total_encontradas": 0,
             "total_nuevas": 0,
             "total_duplicadas": 0,
+            "total_descartadas_vacias": 0,
+            "total_descartadas_idioma": 0,
             "errores": [],
             "tiempo_inicio": time.time(),
             "tiempo_transcurrido": 0,
@@ -273,8 +295,17 @@ class BusquedaService:
                         await self._scrapear_y_guardar_receta(scraper, url)
                         estado_sitio["nuevas"] += 1
                         estado["total_nuevas"] += 1
+                    except RecetaDescartadaError as e:
+                        # Receta descartada por validación (vacía o en inglés)
+                        if e.tipo == "idioma":
+                            estado_sitio["descartadas_idioma"] += 1
+                            estado["total_descartadas_idioma"] += 1
+                        else:
+                            estado_sitio["descartadas_vacias"] += 1
+                            estado["total_descartadas_vacias"] += 1
                     except Exception as e:
                         # Si falla el scraping individual, continuar con las demás
+                        logger.debug(f"Error scraping {url}: {str(e)}")
                         pass
             
             estado_sitio["estado"] = "completado"
@@ -319,17 +350,30 @@ class BusquedaService:
     
     async def _scrapear_y_guardar_receta(self, scraper, url: str):
         """
-        Scrapea una receta completa y la guarda en la base de datos.
+        Scrapea una receta completa, valida y la guarda en la base de datos.
         
         Args:
             scraper: Instancia del scraper a usar.
             url: URL de la receta a scrapear.
             
         Raises:
+            RecetaDescartadaError: Si la receta no pasa la validación (vacía o en inglés).
             Exception: Si hay error durante el scraping o guardado.
         """
         # Scrapear la receta completa
         datos = await scraper.scrapear(url)
+        
+        # Validar que la receta tenga contenido mínimo
+        es_valida, mensaje_error = datos.validar()
+        if not es_valida:
+            logger.warning(f"Receta descartada (vacía): {url} - {mensaje_error}")
+            raise RecetaDescartadaError(mensaje_error, tipo="invalida")
+        
+        # Validar idioma - descartar recetas en inglés
+        idioma = datos.detectar_idioma()
+        if idioma == "en":
+            logger.warning(f"Receta descartada (en inglés): {url}")
+            raise RecetaDescartadaError("Contenido en inglés", tipo="idioma")
         
         # Crear la receta en la base de datos
         receta = Receta(
@@ -375,6 +419,8 @@ class BusquedaService:
             "total_encontradas": estado["total_encontradas"],
             "total_nuevas": estado["total_nuevas"],
             "total_duplicadas": estado["total_duplicadas"],
+            "total_descartadas_vacias": estado.get("total_descartadas_vacias", 0),
+            "total_descartadas_idioma": estado.get("total_descartadas_idioma", 0),
             "errores": estado["errores"],
             "tiempo_transcurrido": estado["tiempo_transcurrido"]
         }
@@ -400,6 +446,8 @@ class BusquedaService:
             "total_encontradas": estado["total_encontradas"],
             "total_nuevas": estado["total_nuevas"],
             "total_duplicadas": estado["total_duplicadas"],
+            "total_descartadas_vacias": estado.get("total_descartadas_vacias", 0),
+            "total_descartadas_idioma": estado.get("total_descartadas_idioma", 0),
             "sitios": list(estado["sitios"].values()),
             "errores": estado["errores"],
             "tiempo_total": estado["tiempo_transcurrido"]

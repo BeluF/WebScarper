@@ -104,6 +104,8 @@ export interface EstadoSitio {
   encontradas: number;
   nuevas: number;
   duplicadas: number;
+  descartadas_vacias?: number;
+  descartadas_idioma?: number;
   error_mensaje?: string | null;
 }
 
@@ -116,6 +118,8 @@ export interface BusquedaProgreso {
   total_encontradas: number;
   total_nuevas: number;
   total_duplicadas: number;
+  total_descartadas_vacias?: number;
+  total_descartadas_idioma?: number;
   errores: string[];
   tiempo_transcurrido?: number | null;
 }
@@ -127,6 +131,8 @@ export interface BusquedaResultado {
   total_encontradas: number;
   total_nuevas: number;
   total_duplicadas: number;
+  total_descartadas_vacias?: number;
+  total_descartadas_idioma?: number;
   sitios: EstadoSitio[];
   errores: string[];
   tiempo_total: number;

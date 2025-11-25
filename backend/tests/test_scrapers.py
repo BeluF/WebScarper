@@ -5,6 +5,205 @@ Tests para los scrapers del sistema de recetario.
 import pytest
 from app.scraper.scraper_factory import ScraperFactory
 from app.scraper.proxy_manager import ProxyManager
+from app.scraper.base_scraper import (
+    validar_receta,
+    detectar_idioma,
+    separar_ingredientes_y_pasos,
+    RecetaScraped
+)
+
+
+class TestValidacionRecetas:
+    """Tests para la validación de recetas."""
+    
+    def test_receta_valida(self):
+        """Verifica que una receta completa sea válida."""
+        receta = {
+            'titulo': 'Empanadas de carne',
+            'ingredientes': ['500g de carne molida', '2 cebollas', 'Comino'],
+            'pasos': ['Picar las cebollas', 'Cocinar la carne', 'Armar las empanadas']
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is True
+        assert mensaje == ""
+    
+    def test_receta_sin_titulo(self):
+        """Verifica que una receta sin título sea inválida."""
+        receta = {
+            'titulo': '',
+            'ingredientes': ['500g de carne'],
+            'pasos': ['Cocinar la carne']
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is False
+        assert 'título' in mensaje.lower()
+    
+    def test_receta_sin_titulo_default(self):
+        """Verifica que una receta con título 'Sin título' sea inválida."""
+        receta = {
+            'titulo': 'Sin título',
+            'ingredientes': ['500g de carne'],
+            'pasos': ['Cocinar la carne']
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is False
+        assert 'título' in mensaje.lower()
+    
+    def test_receta_sin_ingredientes(self):
+        """Verifica que una receta sin ingredientes sea inválida."""
+        receta = {
+            'titulo': 'Receta de prueba',
+            'ingredientes': [],
+            'pasos': ['Paso 1', 'Paso 2']
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is False
+        assert 'ingredientes' in mensaje.lower()
+    
+    def test_receta_sin_pasos(self):
+        """Verifica que una receta sin pasos sea inválida."""
+        receta = {
+            'titulo': 'Receta de prueba',
+            'ingredientes': ['Ingrediente 1'],
+            'pasos': []
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is False
+        assert 'pasos' in mensaje.lower()
+    
+    def test_receta_con_ingredientes_vacios(self):
+        """Verifica que una receta con ingredientes vacíos sea inválida."""
+        receta = {
+            'titulo': 'Receta de prueba',
+            'ingredientes': ['', '  ', ''],
+            'pasos': ['Paso 1']
+        }
+        es_valida, mensaje = validar_receta(receta)
+        assert es_valida is False
+        assert 'ingredientes' in mensaje.lower()
+
+
+class TestDeteccionIdioma:
+    """Tests para la detección de idioma."""
+    
+    def test_detectar_espanol(self):
+        """Verifica detección de texto en español."""
+        texto = "Mezclar los ingredientes en una olla. Cocinar durante 20 minutos. Añadir sal al gusto."
+        idioma = detectar_idioma(texto)
+        assert idioma == 'es'
+    
+    def test_detectar_ingles(self):
+        """Verifica detección de texto en inglés."""
+        texto = "Mix the ingredients in a pot. Cook for 20 minutes. Add salt to taste."
+        idioma = detectar_idioma(texto)
+        assert idioma == 'en'
+    
+    def test_detectar_desconocido(self):
+        """Verifica detección de texto sin palabras clave."""
+        texto = "Lorem ipsum dolor sit amet"
+        idioma = detectar_idioma(texto)
+        assert idioma == 'desconocido'
+    
+    def test_detectar_espanol_receta_completa(self):
+        """Verifica detección en una receta completa en español."""
+        texto = """
+        Empanadas de carne
+        Ingredientes: 500g de carne molida, 2 cucharadas de comino
+        Preparación: Picar las cebollas y cocinar a fuego medio.
+        Tiempo de cocción: 30 minutos. Porciones: 12 empanadas.
+        """
+        idioma = detectar_idioma(texto)
+        assert idioma == 'es'
+
+
+class TestSepararIngredientesYPasos:
+    """Tests para la separación de ingredientes y pasos."""
+    
+    def test_separar_lista_mixta(self):
+        """Verifica separación de una lista mezclada."""
+        items = [
+            '500g de carne molida',
+            '2 cucharadas de aceite',
+            'Picar las cebollas finamente y reservar',
+            '1 taza de harina',
+            'Cocinar a fuego medio durante 20 minutos'
+        ]
+        ingredientes, pasos = separar_ingredientes_y_pasos(items)
+        
+        # Los items con cantidades deben ir a ingredientes
+        assert '500g de carne molida' in ingredientes
+        assert '2 cucharadas de aceite' in ingredientes
+        assert '1 taza de harina' in ingredientes
+        
+        # Los items largos con verbos de cocina deben ir a pasos
+        assert 'Picar las cebollas finamente y reservar' in pasos
+        assert 'Cocinar a fuego medio durante 20 minutos' in pasos
+    
+    def test_separar_lista_solo_ingredientes(self):
+        """Verifica separación cuando solo hay ingredientes."""
+        items = [
+            '500g de carne',
+            '100ml de leche',
+            '2 huevos',
+            'Sal'
+        ]
+        ingredientes, pasos = separar_ingredientes_y_pasos(items)
+        assert len(ingredientes) == 4
+        assert len(pasos) == 0
+    
+    def test_separar_lista_vacia(self):
+        """Verifica separación de lista vacía."""
+        ingredientes, pasos = separar_ingredientes_y_pasos([])
+        assert ingredientes == []
+        assert pasos == []
+    
+    def test_ignorar_items_vacios(self):
+        """Verifica que se ignoren items vacíos."""
+        items = ['500g de carne', '', '  ', 'Sal']
+        ingredientes, pasos = separar_ingredientes_y_pasos(items)
+        assert len(ingredientes) == 2
+
+
+class TestRecetaScrapedValidacion:
+    """Tests para la validación en la clase RecetaScraped."""
+    
+    def test_receta_scraped_validar(self):
+        """Verifica método validar de RecetaScraped."""
+        receta = RecetaScraped(
+            titulo='Empanadas de carne',
+            url_origen='https://test.com/receta',
+            sitio_origen='Test',
+            ingredientes=['500g de carne', 'Cebollas'],
+            pasos=['Picar', 'Cocinar']
+        )
+        es_valida, mensaje = receta.validar()
+        assert es_valida is True
+    
+    def test_receta_scraped_detectar_idioma_espanol(self):
+        """Verifica detección de idioma español en RecetaScraped."""
+        receta = RecetaScraped(
+            titulo='Empanadas de carne con verduras',
+            url_origen='https://test.com/receta',
+            sitio_origen='Test',
+            descripcion='Una deliciosa receta de empanadas para cocinar en familia',
+            ingredientes=['500g de carne molida', '2 cucharadas de aceite'],
+            pasos=['Mezclar todos los ingredientes', 'Cocinar durante 30 minutos']
+        )
+        idioma = receta.detectar_idioma()
+        assert idioma == 'es'
+    
+    def test_receta_scraped_detectar_idioma_ingles(self):
+        """Verifica detección de idioma inglés en RecetaScraped."""
+        receta = RecetaScraped(
+            titulo='Beef Empanadas Recipe',
+            url_origen='https://test.com/recipe',
+            sitio_origen='Test',
+            descripcion='A delicious recipe to cook with your family',
+            ingredientes=['500g ground beef', '2 tablespoons oil'],
+            pasos=['Mix all ingredients', 'Cook for 30 minutes']
+        )
+        idioma = receta.detectar_idioma()
+        assert idioma == 'en'
 
 
 class TestScraperFactory:

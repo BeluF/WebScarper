@@ -6,11 +6,150 @@ Define la interfaz común que deben implementar todos los scrapers específicos.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import asyncio
 import time
+import re
 
 from app.config import SCRAPER_TIMEOUT, SCRAPER_HEADLESS, RATE_LIMIT_DELAY
+
+
+# Constantes para detección de idioma
+PALABRAS_ESPANOL = [
+    'preparación', 'ingredientes', 'minutos', 'cocinar', 
+    'mezclar', 'añadir', 'hervir', 'porciones', 'tiempo',
+    'receta', 'preparar', 'agregar', 'cucharada', 'taza',
+    'horno', 'fuego', 'sartén', 'olla', 'picar', 'cortar'
+]
+
+PALABRAS_INGLES = [
+    'preparation', 'ingredients', 'minutes', 'cook', 
+    'mix', 'add', 'boil', 'servings', 'time',
+    'recipe', 'prepare', 'tablespoon', 'cup',
+    'oven', 'heat', 'pan', 'pot', 'chop', 'cut'
+]
+
+# Constantes para separación de ingredientes y pasos
+# Longitud máxima de texto para considerarse ingrediente con cantidad
+LONGITUD_MAX_INGREDIENTE_CON_CANTIDAD = 100
+# Longitud mínima para considerarse un paso (texto largo)
+LONGITUD_MIN_PASO = 80
+# Longitud máxima para considerarse ingrediente corto
+LONGITUD_MAX_INGREDIENTE_CORTO = 50
+
+# Verbos comunes en pasos de cocina (español)
+VERBOS_COCINA = [
+    'mezclar', 'cocinar', 'hornear', 'agregar', 'añadir', 'batir', 
+    'freír', 'hervir', 'cortar', 'picar', 'revolver', 'calentar',
+    'dejar', 'colocar', 'poner', 'servir', 'decorar', 'reservar',
+    'incorporar', 'salpimentar', 'precalentar', 'retirar', 'escurrir'
+]
+
+
+def validar_receta(receta: dict) -> Tuple[bool, str]:
+    """
+    Valida que una receta tenga los datos mínimos requeridos.
+    
+    Una receta DEBE tener como mínimo: título, al menos 1 ingrediente, al menos 1 paso.
+    
+    Args:
+        receta: Diccionario con los datos de la receta.
+        
+    Returns:
+        tuple: (es_valida: bool, mensaje_error: str)
+    """
+    errores = []
+    
+    # Validar título
+    titulo = receta.get('titulo') or ""
+    if not titulo or not titulo.strip() or titulo.strip() == "Sin título":
+        errores.append("Falta el título")
+    
+    # Validar ingredientes
+    ingredientes = receta.get('ingredientes', [])
+    if not ingredientes or len(ingredientes) == 0:
+        errores.append("No tiene ingredientes")
+    elif all(not ing.strip() for ing in ingredientes if isinstance(ing, str)):
+        errores.append("Los ingredientes están vacíos")
+    
+    # Validar pasos
+    pasos = receta.get('pasos', [])
+    if not pasos or len(pasos) == 0:
+        errores.append("No tiene pasos de preparación")
+    elif all(not paso.strip() for paso in pasos if isinstance(paso, str)):
+        errores.append("Los pasos están vacíos")
+    
+    if errores:
+        return False, "; ".join(errores)
+    return True, ""
+
+
+def detectar_idioma(texto: str) -> str:
+    """
+    Detecta si el texto está en español o inglés.
+    Usa palabras comunes como indicador.
+    
+    Args:
+        texto: Texto a analizar.
+        
+    Returns:
+        'es' para español, 'en' para inglés, 'desconocido' si no se puede determinar.
+    """
+    texto_lower = texto.lower()
+    
+    count_es = sum(1 for p in PALABRAS_ESPANOL if p in texto_lower)
+    count_en = sum(1 for p in PALABRAS_INGLES if p in texto_lower)
+    
+    if count_es > count_en:
+        return 'es'
+    elif count_en > count_es:
+        return 'en'
+    return 'desconocido'
+
+
+def separar_ingredientes_y_pasos(items: List[str]) -> Tuple[List[str], List[str]]:
+    """
+    Separa una lista mezclada de ingredientes y pasos.
+    
+    Heurísticas:
+    - Ingredientes: cortos, tienen cantidades/unidades
+    - Pasos: largos, tienen verbos de acción
+    
+    Args:
+        items: Lista de textos mezclados.
+        
+    Returns:
+        tuple: (ingredientes, pasos)
+    """
+    # Patrones para detectar ingredientes (incluye unidades métricas comunes)
+    patron_cantidad = re.compile(
+        r'\d+\s*(g|kg|ml|l|cucharada|cucharadita|taza|unidad|diente|pizca|gramo|kilo|litro|cc)',
+        re.IGNORECASE
+    )
+    
+    ingredientes = []
+    pasos = []
+    
+    for item in items:
+        if not isinstance(item, str):
+            continue
+        item = item.strip()
+        if not item:
+            continue
+            
+        # Si es corto y tiene cantidad → ingrediente
+        if len(item) < LONGITUD_MAX_INGREDIENTE_CON_CANTIDAD and patron_cantidad.search(item):
+            ingredientes.append(item)
+        # Si es largo o tiene verbos de cocina → paso
+        elif len(item) > LONGITUD_MIN_PASO or any(verbo in item.lower() for verbo in VERBOS_COCINA):
+            pasos.append(item)
+        # Si es muy corto, probablemente ingrediente
+        elif len(item) < LONGITUD_MAX_INGREDIENTE_CORTO:
+            ingredientes.append(item)
+        else:
+            pasos.append(item)
+    
+    return ingredientes, pasos
 
 
 @dataclass
@@ -37,6 +176,43 @@ class RecetaScraped:
             self.ingredientes = []
         if self.pasos is None:
             self.pasos = []
+    
+    def validar(self) -> Tuple[bool, str]:
+        """
+        Valida que la receta tenga los datos mínimos requeridos.
+        
+        Returns:
+            tuple: (es_valida: bool, mensaje_error: str)
+        """
+        return validar_receta({
+            'titulo': self.titulo,
+            'ingredientes': self.ingredientes,
+            'pasos': self.pasos
+        })
+    
+    def obtener_texto_completo(self) -> str:
+        """
+        Obtiene todo el texto de la receta para análisis.
+        
+        Returns:
+            str: Texto combinado de título, ingredientes y pasos.
+        """
+        partes = [self.titulo or ""]
+        if self.descripcion:
+            partes.append(self.descripcion)
+        partes.extend(self.ingredientes or [])
+        partes.extend(self.pasos or [])
+        return " ".join(partes)
+    
+    def detectar_idioma(self) -> str:
+        """
+        Detecta el idioma del contenido de la receta.
+        
+        Returns:
+            str: 'es', 'en' o 'desconocido'
+        """
+        texto = self.obtener_texto_completo()
+        return detectar_idioma(texto)
 
 
 class BaseScraper(ABC):

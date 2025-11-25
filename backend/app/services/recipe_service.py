@@ -4,6 +4,7 @@ Servicio de lógica de negocio para recetas.
 Maneja las operaciones CRUD y scraping de recetas.
 """
 
+import logging
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -11,6 +12,10 @@ from sqlalchemy import or_
 from app.models import Receta
 from app.schemas import RecetaActualizar
 from app.scraper.scraper_factory import ScraperFactory
+
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 
 class RecipeService:
@@ -116,7 +121,7 @@ class RecipeService:
             Receta guardada en la base de datos.
             
         Raises:
-            ValueError: Si la URL no está soportada o ya existe.
+            ValueError: Si la URL no está soportada, ya existe, o la receta no es válida.
             Exception: Si hay error durante el scraping.
         """
         # Verificar si la URL ya existe
@@ -133,6 +138,18 @@ class RecipeService:
         
         # Realizar el scraping
         datos = await scraper.scrapear(str(url))
+        
+        # Validar que la receta tenga contenido mínimo
+        es_valida, mensaje_error = datos.validar()
+        if not es_valida:
+            logger.warning(f"Receta rechazada (vacía): {url} - {mensaje_error}")
+            raise ValueError(f"La receta no tiene contenido válido: {mensaje_error}")
+        
+        # Validar idioma - rechazar recetas en inglés
+        idioma = datos.detectar_idioma()
+        if idioma == "en":
+            logger.warning(f"Receta rechazada (en inglés): {url}")
+            raise ValueError("La receta está en inglés. Solo se aceptan recetas en español.")
         
         # Crear la receta en la base de datos
         receta = Receta(
