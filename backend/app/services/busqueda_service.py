@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.models import Receta
 from app.scraper.scraper_factory import ScraperFactory
-from app.config import RATE_LIMIT_DELAY
 
 
 # Almacén en memoria para el estado de las búsquedas activas

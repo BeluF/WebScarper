@@ -46,16 +46,7 @@ class CookpadScraper(BaseScraper):
         return "https://cookpad.com/ar/buscar/populares"
     
     async def _extraer_lista_recetas(self, page, limite: int) -> List[dict]:
-        """
-        Extrae la lista de recetas de la página de búsqueda de Cookpad.
-        
-        Args:
-            page: Página de Playwright con resultados de búsqueda.
-            limite: Cantidad máxima de recetas a extraer.
-            
-        Returns:
-            Lista de diccionarios con URL, título e imagen de cada receta.
-        """
+        """Extrae la lista de recetas de la página de búsqueda."""
         recetas = []
         
         # Selectores para las tarjetas de recetas en Cookpad
