@@ -2,6 +2,7 @@
 Scraper para Tasty (tasty.co).
 
 Plataforma de videos y recetas de BuzzFeed.
+NOTA: Tasty está principalmente en inglés, pero intentamos filtrar contenido en español.
 """
 
 from typing import List, Optional
@@ -14,6 +15,8 @@ class TastyScraper(BaseScraper):
     Scraper especializado para Tasty.
     
     Extrae recetas del sitio tasty.co.
+    ADVERTENCIA: La mayoría del contenido está en inglés.
+    Las recetas en inglés serán descartadas por la validación de idioma.
     """
     
     nombre_sitio = "Tasty"
@@ -24,11 +27,17 @@ class TastyScraper(BaseScraper):
         palabra_clave: Optional[str] = None,
         filtros: Optional[dict] = None
     ) -> str:
-        """Construye la URL de búsqueda para Tasty."""
+        """
+        Construye la URL de búsqueda para Tasty.
+        
+        Intentamos buscar con términos en español para mejorar
+        las probabilidades de encontrar contenido en español.
+        """
         if palabra_clave:
             query = quote(palabra_clave)
             return f"https://tasty.co/search?q={query}"
-        return "https://tasty.co/latest"
+        # Buscar recetas con términos en español como fallback
+        return "https://tasty.co/search?q=receta"
     
     async def _extraer_lista_recetas(self, page, limite: int) -> List[dict]:
         """Extrae la lista de recetas de la página de búsqueda."""

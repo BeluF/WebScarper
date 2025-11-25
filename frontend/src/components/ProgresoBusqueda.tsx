@@ -53,8 +53,13 @@ const ProgresoBusqueda: React.FC<ProgresoBusquedaProps> = ({ progreso, onCancela
         return 'En espera...';
       case 'en_progreso':
         return `Buscando... ${estado.encontradas} encontradas`;
-      case 'completado':
+      case 'completado': {
+        const descartadas = (estado.descartadas_vacias || 0) + (estado.descartadas_idioma || 0);
+        if (descartadas > 0) {
+          return `${estado.encontradas} recetas (${estado.nuevas} nuevas, ${estado.duplicadas} dup., ${descartadas} desc.)`;
+        }
         return `${estado.encontradas} recetas (${estado.nuevas} nuevas, ${estado.duplicadas} duplicadas)`;
+      }
       case 'error':
         return estado.error_mensaje || 'Error desconocido';
       default:
@@ -109,7 +114,7 @@ const ProgresoBusqueda: React.FC<ProgresoBusquedaProps> = ({ progreso, onCancela
       </div>
 
       {/* Resumen de estadísticas */}
-      <div className="grid grid-cols-3 gap-4 p-4 bg-gray-100 rounded-lg mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-100 rounded-lg mb-6">
         <div className="text-center">
           <div className="text-2xl font-bold text-green-600">
             📥 {progreso.total_nuevas}
@@ -121,6 +126,19 @@ const ProgresoBusqueda: React.FC<ProgresoBusquedaProps> = ({ progreso, onCancela
             🔄 {progreso.total_duplicadas}
           </div>
           <div className="text-xs text-gray-600">Duplicadas</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-orange-500">
+            ⚠️ {(progreso.total_descartadas_vacias || 0) + (progreso.total_descartadas_idioma || 0)}
+          </div>
+          <div className="text-xs text-gray-600">
+            Descartadas
+            {((progreso.total_descartadas_vacias || 0) > 0 || (progreso.total_descartadas_idioma || 0) > 0) && (
+              <span className="block text-gray-400">
+                ({progreso.total_descartadas_vacias || 0} vacías, {progreso.total_descartadas_idioma || 0} inglés)
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-red-600">
