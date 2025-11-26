@@ -352,54 +352,57 @@ class RecetasEssenScraper(BaseScraper):
         """
         items = []
         
-        try:
-            resultado = await page.evaluate('''(html) => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const items = [];
-                
-                // Buscar items de lista
-                const liItems = doc.querySelectorAll('li');
-                if (liItems.length > 0) {
-                    liItems.forEach(li => {
-                        const text = li.textContent.trim();
-                        if (text) items.push(text);
-                    });
-                    return items;
-                }
-                
-                // Buscar párrafos
-                const paragraphs = doc.querySelectorAll('p');
-                if (paragraphs.length > 0) {
-                    paragraphs.forEach(p => {
-                        // Reemplazar <br> con saltos de línea
-                        const innerHTML = p.innerHTML.replace(/<br\\s*\\/?>/gi, '\\n');
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = innerHTML;
-                        const lines = tempDiv.textContent.split('\\n');
-                        lines.forEach(line => {
-                            const text = line.trim();
-                            if (text) items.push(text);
-                        });
-                    });
-                    return items;
-                }
-                
-                // Fallback: texto plano del elemento raíz
-                const root = doc.body.firstElementChild;
-                if (root) {
-                    const innerHTML = root.innerHTML.replace(/<br\\s*\\/?>/gi, '\\n');
+        # JavaScript code to parse HTML and extract items
+        js_code = r'''(html) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const items = [];
+            
+            // Buscar items de lista
+            const liItems = doc.querySelectorAll('li');
+            if (liItems.length > 0) {
+                liItems.forEach(li => {
+                    const text = li.textContent.trim();
+                    if (text) items.push(text);
+                });
+                return items;
+            }
+            
+            // Buscar párrafos
+            const paragraphs = doc.querySelectorAll('p');
+            if (paragraphs.length > 0) {
+                paragraphs.forEach(p => {
+                    // Reemplazar <br> con saltos de línea
+                    const innerHTML = p.innerHTML.replace(/<br\s*\/?>/gi, '\n');
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = innerHTML;
-                    const lines = tempDiv.textContent.split('\\n');
+                    const lines = tempDiv.textContent.split('\n');
                     lines.forEach(line => {
                         const text = line.trim();
                         if (text) items.push(text);
                     });
-                }
-                
+                });
                 return items;
-            }''', html)
+            }
+            
+            // Fallback: texto plano del elemento raíz
+            const root = doc.body.firstElementChild;
+            if (root) {
+                const innerHTML = root.innerHTML.replace(/<br\s*\/?>/gi, '\n');
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = innerHTML;
+                const lines = tempDiv.textContent.split('\n');
+                lines.forEach(line => {
+                    const text = line.trim();
+                    if (text) items.push(text);
+                });
+            }
+            
+            return items;
+        }'''
+        
+        try:
+            resultado = await page.evaluate(js_code, html)
             
             if resultado:
                 items = [item for item in resultado if item and item.strip()]
