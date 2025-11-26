@@ -414,6 +414,102 @@ class TestBaseScraperHelpers:
         assert "cookpad.com" in scraper.dominios_soportados
 
 
+class TestRecetasEssenScraper:
+    """Tests para el scraper de Recetas Essen."""
+    
+    def test_recetas_essen_nombre_sitio(self):
+        """Verifica configuración básica de RecetasEssenScraper."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert scraper.nombre_sitio == "Recetas Essen"
+        assert "recetasessen.com.ar" in scraper.dominios_soportados
+        assert "recetasessen.com" in scraper.dominios_soportados
+    
+    def test_recetas_essen_tiene_encabezados_ingredientes(self):
+        """Verifica que tiene constantes de encabezados para ingredientes."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, 'ENCABEZADOS_INGREDIENTES')
+        assert 'ingredientes' in scraper.ENCABEZADOS_INGREDIENTES
+        assert len(scraper.ENCABEZADOS_INGREDIENTES) >= 2
+    
+    def test_recetas_essen_tiene_encabezados_pasos(self):
+        """Verifica que tiene constantes de encabezados para pasos."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, 'ENCABEZADOS_PASOS')
+        assert 'preparación' in scraper.ENCABEZADOS_PASOS
+        assert 'instrucciones' in scraper.ENCABEZADOS_PASOS
+        assert len(scraper.ENCABEZADOS_PASOS) >= 4
+    
+    def test_recetas_essen_tiene_metodos_helper(self):
+        """Verifica que tiene los métodos helper heredados del BaseScraper."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, '_esperar_cualquier_selector')
+        assert hasattr(scraper, '_hacer_scroll_para_lazy_loading')
+        assert hasattr(scraper, '_esperar_contenido_cargado')
+        assert hasattr(scraper, '_extraer_texto_seguro')
+        assert hasattr(scraper, '_extraer_lista_textos')
+    
+    def test_recetas_essen_tiene_metodo_extraer_imagen_lazy(self):
+        """Verifica que tiene método para extraer imágenes con lazy loading."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, '_extraer_imagen_lazy')
+        assert callable(getattr(scraper, '_extraer_imagen_lazy'))
+    
+    def test_recetas_essen_tiene_metodo_extraer_contenido_por_encabezado(self):
+        """Verifica que tiene método genérico para extraer contenido por encabezado."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, '_extraer_contenido_por_encabezado')
+        assert callable(getattr(scraper, '_extraer_contenido_por_encabezado'))
+    
+    def test_recetas_essen_tiene_metodo_parsear_contenido_html(self):
+        """Verifica que tiene método para parsear HTML con br y listas."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        assert hasattr(scraper, '_parsear_contenido_html')
+        assert callable(getattr(scraper, '_parsear_contenido_html'))
+    
+    def test_recetas_essen_log_output(self, capsys):
+        """Verifica que el método _log produce salida correcta."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        scraper._log("Test mensaje Essen")
+        
+        captured = capsys.readouterr()
+        assert "[RecetasEssenScraper]" in captured.out
+        assert "Test mensaje Essen" in captured.out
+    
+    def test_recetas_essen_construir_url_busqueda_con_keyword(self):
+        """Verifica construcción de URL de búsqueda con palabra clave."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        url = scraper._construir_url_busqueda("empanadas")
+        
+        assert "recetasessen.com.ar" in url
+        assert "?s=" in url
+        assert "empanadas" in url
+    
+    def test_recetas_essen_construir_url_busqueda_sin_keyword(self):
+        """Verifica construcción de URL de búsqueda sin palabra clave."""
+        from app.scraper.sites.recetas_essen import RecetasEssenScraper
+        
+        scraper = RecetasEssenScraper()
+        url = scraper._construir_url_busqueda()
+        
+        assert "recetasessen.com.ar/recetas/" in url
 class TestCookpadScraperMejoras:
     """Tests para las mejoras del scraper de Cookpad."""
     
