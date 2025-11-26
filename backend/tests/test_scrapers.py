@@ -510,3 +510,179 @@ class TestRecetasEssenScraper:
         url = scraper._construir_url_busqueda()
         
         assert "recetasessen.com.ar/recetas/" in url
+class TestCookpadScraperMejoras:
+    """Tests para las mejoras del scraper de Cookpad."""
+    
+    def test_cookpad_tiene_metodo_extraer_imagen_lazy_loading(self):
+        """Verifica que CookpadScraper tiene método para lazy loading de imágenes."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_imagen_con_lazy_loading')
+        assert callable(getattr(scraper, '_extraer_imagen_con_lazy_loading'))
+    
+    def test_cookpad_tiene_metodo_extraer_ingredientes(self):
+        """Verifica que CookpadScraper tiene método para extraer ingredientes."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_ingredientes')
+        assert callable(getattr(scraper, '_extraer_ingredientes'))
+    
+    def test_cookpad_tiene_metodo_extraer_pasos(self):
+        """Verifica que CookpadScraper tiene método para extraer pasos."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_pasos')
+        assert callable(getattr(scraper, '_extraer_pasos'))
+    
+    def test_cookpad_tiene_metodo_extraer_receta(self):
+        """Verifica que CookpadScraper tiene método para extraer recetas."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_receta')
+        assert callable(getattr(scraper, '_extraer_receta'))
+    
+    def test_cookpad_tiene_metodo_extraer_lista_recetas(self):
+        """Verifica que CookpadScraper tiene método para extraer lista de recetas."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_lista_recetas')
+        assert callable(getattr(scraper, '_extraer_lista_recetas'))
+    
+    def test_cookpad_url_busqueda_con_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda con palabra clave."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        url = scraper._construir_url_busqueda("empanadas")
+        assert "cookpad.com/ar/buscar" in url
+        assert "empanadas" in url
+    
+    def test_cookpad_url_busqueda_sin_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda sin palabra clave."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        url = scraper._construir_url_busqueda(None)
+        assert "cookpad.com/ar/buscar/populares" in url
+class TestSoyCeliacoScraper:
+    """Tests para el scraper de Soy Celíaco No Extraterrestre."""
+    
+    def test_scraper_nombre_sitio(self):
+        """Verifica configuración del scraper."""
+        from app.scraper.sites.soy_celiaco import SoyCeliacoScraper
+        
+        scraper = SoyCeliacoScraper()
+        assert scraper.nombre_sitio == "Soy Celíaco No Extraterrestre"
+        assert "soyceliaconoextraterrestre.com" in scraper.dominios_soportados
+    
+    def test_scraper_tiene_metodo_extraer_imagen_con_lazy_loading(self):
+        """Verifica que el scraper tiene el método para lazy loading."""
+        from app.scraper.sites.soy_celiaco import SoyCeliacoScraper
+        
+        scraper = SoyCeliacoScraper()
+        assert hasattr(scraper, '_extraer_imagen_con_lazy_loading')
+        assert callable(getattr(scraper, '_extraer_imagen_con_lazy_loading'))
+    
+    def test_scraper_tiene_metodo_extraer_metadatos(self):
+        """Verifica que el scraper tiene el método para extraer metadatos."""
+        from app.scraper.sites.soy_celiaco import SoyCeliacoScraper
+        
+        scraper = SoyCeliacoScraper()
+        assert hasattr(scraper, '_extraer_metadatos')
+        assert callable(getattr(scraper, '_extraer_metadatos'))
+    
+    def test_scraper_url_busqueda_con_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda con palabra clave."""
+        from app.scraper.sites.soy_celiaco import SoyCeliacoScraper
+        
+        scraper = SoyCeliacoScraper()
+        url = scraper._construir_url_busqueda("pan de mandioca")
+        assert "soyceliaconoextraterrestre.com" in url
+        assert "pan%20de%20mandioca" in url or "pan+de+mandioca" in url
+    
+    def test_scraper_url_busqueda_sin_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda sin palabra clave."""
+        from app.scraper.sites.soy_celiaco import SoyCeliacoScraper
+        
+        scraper = SoyCeliacoScraper()
+        url = scraper._construir_url_busqueda()
+        assert url == "https://www.soyceliaconoextraterrestre.com/recetas/"
+
+
+class TestSoyCeliacoMetadatosRegex:
+    """Tests para la extracción de metadatos con regex en SoyCeliacoScraper."""
+    
+    def test_extraer_porciones_rinde_para(self):
+        """Verifica extracción de porciones con formato 'Rinde para X'."""
+        import re
+        
+        texto = "Rinde para 5 pancitos\nTiempo de preparación: 30 minutos"
+        patron_porciones = re.compile(
+            r'(?:rinde\s+(?:para\s+)?(\d+)\s*(?:porciones?|pancitos?|unidades?)?|'
+            r'(\d+)\s*porciones?)',
+            re.IGNORECASE
+        )
+        match = patron_porciones.search(texto)
+        assert match is not None
+        num = match.group(1) or match.group(2)
+        assert num == "5"
+    
+    def test_extraer_porciones_formato_numerico(self):
+        """Verifica extracción de porciones con formato 'X porciones'."""
+        import re
+        
+        texto = "12 porciones. Tiempo: 45 min"
+        patron_porciones = re.compile(
+            r'(?:rinde\s+(?:para\s+)?(\d+)\s*(?:porciones?|pancitos?|unidades?)?|'
+            r'(\d+)\s*porciones?)',
+            re.IGNORECASE
+        )
+        match = patron_porciones.search(texto)
+        assert match is not None
+        num = match.group(1) or match.group(2)
+        assert num == "12"
+    
+    def test_extraer_tiempo_preparacion(self):
+        """Verifica extracción de tiempo de preparación."""
+        import re
+        
+        texto = "Tiempo de preparación: 30 minutos\nTiempo de cocción: 20 minutos"
+        patron_prep = re.compile(
+            r'tiempo\s+de\s+preparaci[oó]n[:\s]+(\d+\s*(?:minutos?|min|horas?|h))',
+            re.IGNORECASE
+        )
+        match = patron_prep.search(texto)
+        assert match is not None
+        assert "30" in match.group(1)
+    
+    def test_extraer_tiempo_coccion(self):
+        """Verifica extracción de tiempo de cocción."""
+        import re
+        
+        texto = "Tiempo de cocción: 20 minutos en horno fuerte (200°C)"
+        patron_coccion = re.compile(
+            r'tiempo\s+de\s+cocci[oó]n[:\s]+(\d+\s*(?:minutos?|min|horas?|h)(?:\s*[^\n<]*)?)',
+            re.IGNORECASE
+        )
+        match = patron_coccion.search(texto)
+        assert match is not None
+        assert "20 minutos" in match.group(1)
+    
+    def test_extraer_tiempo_coccion_con_detalles(self):
+        """Verifica que se extraigan detalles adicionales del tiempo de cocción."""
+        import re
+        
+        texto = "Tiempo de cocción: 45 min a fuego lento"
+        patron_coccion = re.compile(
+            r'tiempo\s+de\s+cocci[oó]n[:\s]+(\d+\s*(?:minutos?|min|horas?|h)(?:\s*[^\n<]*)?)',
+            re.IGNORECASE
+        )
+        match = patron_coccion.search(texto)
+        assert match is not None
+        resultado = match.group(1).strip()
+        assert "45" in resultado
