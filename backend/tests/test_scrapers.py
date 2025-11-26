@@ -412,3 +412,118 @@ class TestBaseScraperHelpers:
         scraper = CookpadScraper()
         assert scraper.nombre_sitio == "Cookpad"
         assert "cookpad.com" in scraper.dominios_soportados
+
+
+class TestCocinerosArgentinosScraper:
+    """Tests específicos para CocinerosArgentinosScraper."""
+    
+    def test_scraper_cocineros_argentinos_configuracion(self):
+        """Verifica configuración básica de CocinerosArgentinosScraper."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        assert scraper.nombre_sitio == "Cocineros Argentinos"
+        assert "cocinerosargentinos.com" in scraper.dominios_soportados
+    
+    def test_scraper_cocineros_argentinos_titulos_ingredientes(self):
+        """Verifica que el scraper tenga los títulos de ingredientes definidos."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        assert hasattr(scraper, 'TITULOS_INGREDIENTES')
+        assert 'ingredientes' in scraper.TITULOS_INGREDIENTES
+        assert 'ingrediente' in scraper.TITULOS_INGREDIENTES
+    
+    def test_scraper_cocineros_argentinos_titulos_pasos(self):
+        """Verifica que el scraper tenga los títulos de pasos definidos."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        assert hasattr(scraper, 'TITULOS_PASOS')
+        assert 'preparación' in scraper.TITULOS_PASOS
+        assert 'procedimiento' in scraper.TITULOS_PASOS
+        assert 'elaboración' in scraper.TITULOS_PASOS
+    
+    def test_parsear_contenido_con_br_simple(self):
+        """Verifica parseo de contenido con tags <br> simples."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        html = "500g de carne<br>2 cebollas<br>1 pimiento"
+        resultado = scraper._parsear_contenido_con_br(html)
+        
+        assert len(resultado) == 3
+        assert "500g de carne" in resultado
+        assert "2 cebollas" in resultado
+        assert "1 pimiento" in resultado
+    
+    def test_parsear_contenido_con_br_variantes(self):
+        """Verifica parseo de variantes de tag <br>."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        html = "Ingrediente 1<br/>Ingrediente 2<BR>Ingrediente 3<br />Ingrediente 4"
+        resultado = scraper._parsear_contenido_con_br(html)
+        
+        assert len(resultado) == 4
+        assert "Ingrediente 1" in resultado
+        assert "Ingrediente 2" in resultado
+        assert "Ingrediente 3" in resultado
+        assert "Ingrediente 4" in resultado
+    
+    def test_parsear_contenido_con_br_con_tags_html(self):
+        """Verifica que se eliminen tags HTML del contenido."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        html = "<strong>500g</strong> de carne<br><em>2 cebollas</em><br><span>Sal al gusto</span>"
+        resultado = scraper._parsear_contenido_con_br(html)
+        
+        assert len(resultado) == 3
+        assert "500g de carne" in resultado
+        assert "2 cebollas" in resultado
+        assert "Sal al gusto" in resultado
+    
+    def test_parsear_contenido_con_br_filtra_vacios(self):
+        """Verifica que se filtren líneas vacías y muy cortas."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        html = "Ingrediente real<br>  <br>  a  <br>Otro ingrediente"
+        resultado = scraper._parsear_contenido_con_br(html)
+        
+        # Solo debe tener los ingredientes reales, no líneas vacías o muy cortas
+        assert len(resultado) == 2
+        assert "Ingrediente real" in resultado
+        assert "Otro ingrediente" in resultado
+    
+    def test_scraper_tiene_metodos_helper(self):
+        """Verifica que el scraper tenga los métodos helper necesarios."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        assert hasattr(scraper, '_esperar_cualquier_selector')
+        assert hasattr(scraper, '_hacer_scroll_para_lazy_loading')
+        assert hasattr(scraper, '_esperar_contenido_cargado')
+        assert hasattr(scraper, '_extraer_imagen')
+        assert hasattr(scraper, '_extraer_contenido_por_encabezado')
+        assert hasattr(scraper, '_parsear_contenido_con_br')
+    
+    def test_construir_url_busqueda_con_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda con palabra clave."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        url = scraper._construir_url_busqueda("empanadas")
+        
+        assert "cocinerosargentinos.com" in url
+        assert "s=empanadas" in url
+    
+    def test_construir_url_busqueda_sin_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda sin palabra clave."""
+        from app.scraper.sites.cocineros_argentinos import CocinerosArgentinosScraper
+        
+        scraper = CocinerosArgentinosScraper()
+        url = scraper._construir_url_busqueda()
+        
+        assert "cocinerosargentinos.com/recetas/" in url
