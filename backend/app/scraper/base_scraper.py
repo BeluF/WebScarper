@@ -399,6 +399,95 @@ class BaseScraper(ABC):
         except Exception:
             return []
     
+    async def _esperar_cualquier_selector(
+        self, 
+        page, 
+        selectores: List[str], 
+        timeout: int = 10000
+    ) -> Optional[str]:
+        """
+        Espera a que cualquiera de los selectores exista en la página.
+        Retorna el selector que encontró primero.
+        
+        Args:
+            page: Página de Playwright.
+            selectores: Lista de selectores CSS a probar.
+            timeout: Tiempo máximo de espera en ms.
+            
+        Returns:
+            El selector que se encontró, o None si ninguno existe.
+        """
+        tiempo_por_selector = max(timeout // len(selectores), 1000)
+        
+        for selector in selectores:
+            try:
+                await page.wait_for_selector(selector, timeout=tiempo_por_selector)
+                self._log(f"Selector encontrado: {selector}")
+                return selector
+            except Exception:
+                continue
+        
+        self._log(f"Ningún selector encontrado de: {selectores}")
+        return None
+    
+    async def _hacer_scroll_para_lazy_loading(
+        self, 
+        page, 
+        scrolls: int = 5, 
+        delay_ms: int = 500
+    ):
+        """
+        Hace scroll gradual para activar lazy loading.
+        
+        Args:
+            page: Página de Playwright.
+            scrolls: Cantidad de scrolls a hacer.
+            delay_ms: Delay entre scrolls en milisegundos.
+        """
+        for _ in range(scrolls):
+            await page.evaluate('window.scrollBy(0, 300)')
+            await page.wait_for_timeout(delay_ms)
+        
+        # Volver arriba
+        await page.evaluate('window.scrollTo(0, 0)')
+        await page.wait_for_timeout(500)
+    
+    async def _esperar_contenido_cargado(self, page, timeout: int = 30000):
+        """
+        Espera a que el contenido principal esté cargado.
+        Usa múltiples estrategias.
+        
+        Args:
+            page: Página de Playwright.
+            timeout: Tiempo máximo de espera en ms.
+        """
+        try:
+            # Estrategia 1: Esperar networkidle
+            await page.wait_for_load_state('networkidle', timeout=timeout)
+        except Exception:
+            pass
+        
+        try:
+            # Estrategia 2: Esperar que no haya spinners/loaders
+            await page.wait_for_function('''
+                () => {
+                    const loaders = document.querySelectorAll('.loading, .spinner, [class*="loader"]');
+                    return loaders.length === 0 || 
+                           Array.from(loaders).every(el => el.offsetParent === null);
+                }
+            ''', timeout=10000)
+        except Exception:
+            pass
+    
+    def _log(self, mensaje: str):
+        """
+        Log de debug para el scraper.
+        
+        Args:
+            mensaje: Mensaje a loguear.
+        """
+        print(f"[{self.__class__.__name__}] {mensaje}")
+    
     async def buscar_recetas(
         self,
         palabra_clave: Optional[str] = None,

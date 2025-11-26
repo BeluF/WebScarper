@@ -73,6 +73,7 @@ class TastyScraper(BaseScraper):
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """
         Extrae los datos de una receta de Tasty.
+        Este sitio es una SPA completa de React, requiere esperas especiales.
         
         Args:
             page: Página de Playwright con el contenido.
@@ -81,6 +82,46 @@ class TastyScraper(BaseScraper):
         Returns:
             RecetaScraped con los datos extraídos.
         """
+        self._log(f"Iniciando extracción de: {url}")
+        
+        # Tasty es una SPA pesada, esperar networkidle
+        await self._esperar_contenido_cargado(page, timeout=45000)
+        
+        # Hacer scroll para activar lazy loading de imágenes y contenido
+        await self._hacer_scroll_para_lazy_loading(page, scrolls=5, delay_ms=500)
+        
+        # Selectores específicos de Tasty para ingredientes
+        selectores_ingredientes = [
+            '[data-testid="ingredient"]',
+            '[class*="ingredient-list"] li',
+            '.ingredient-list li',
+            '[class*="ingredients"] li',
+            '.ingredients li'
+        ]
+        
+        # Selectores específicos de Tasty para pasos
+        selectores_pasos = [
+            '[data-testid="instruction"]',
+            '[class*="preparation-list"] li',
+            '.preparation-list li',
+            '[class*="instructions"] li',
+            '.instructions li'
+        ]
+        
+        # Esperar al menos uno de los selectores de ingredientes
+        selector_ing = await self._esperar_cualquier_selector(
+            page, selectores_ingredientes, timeout=20000
+        )
+        if not selector_ing:
+            self._log("⚠️ No se encontraron selectores de ingredientes")
+        
+        # Esperar al menos uno de los selectores de pasos
+        selector_pasos = await self._esperar_cualquier_selector(
+            page, selectores_pasos, timeout=20000
+        )
+        if not selector_pasos:
+            self._log("⚠️ No se encontraron selectores de pasos")
+        
         # Título
         titulo = await self._extraer_texto_seguro(
             page, 
@@ -116,6 +157,8 @@ class TastyScraper(BaseScraper):
             page,
             '[class*="cook-time"], .total-time'
         )
+        
+        self._log(f"✅ Receta extraída: {titulo}")
         
         return RecetaScraped(
             titulo=titulo or "Sin título",

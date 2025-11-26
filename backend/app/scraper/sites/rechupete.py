@@ -59,6 +59,7 @@ class RechupeteScraper(BaseScraper):
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """
         Extrae los datos de una receta de Rechupete.
+        Maneja lazy loading del contenido.
         
         Args:
             page: Página de Playwright con el contenido.
@@ -67,6 +68,44 @@ class RechupeteScraper(BaseScraper):
         Returns:
             RecetaScraped con los datos extraídos.
         """
+        self._log(f"Iniciando extracción de: {url}")
+        
+        # Esperar a que el contenido dinámico cargue
+        await self._esperar_contenido_cargado(page)
+        
+        # Hacer scroll para cargar contenido lazy
+        await self._hacer_scroll_para_lazy_loading(page, scrolls=5, delay_ms=500)
+        
+        # Selectores específicos de Rechupete para ingredientes
+        selectores_ingredientes = [
+            '.wprm-recipe-ingredient',
+            '.recipe-ingredients li',
+            '[class*="ingredientes"] li',
+            '.ingredients li'
+        ]
+        
+        # Selectores específicos de Rechupete para pasos
+        selectores_pasos = [
+            '.wprm-recipe-instruction',
+            '.recipe-instructions li',
+            '[class*="elaboracion"] li',
+            '.instructions li'
+        ]
+        
+        # Esperar al menos uno de los selectores de ingredientes
+        selector_ing = await self._esperar_cualquier_selector(
+            page, selectores_ingredientes, timeout=15000
+        )
+        if not selector_ing:
+            self._log("⚠️ No se encontraron selectores de ingredientes")
+        
+        # Esperar al menos uno de los selectores de pasos
+        selector_pasos = await self._esperar_cualquier_selector(
+            page, selectores_pasos, timeout=15000
+        )
+        if not selector_pasos:
+            self._log("⚠️ No se encontraron selectores de pasos")
+        
         # Título
         titulo = await self._extraer_texto_seguro(
             page, 
@@ -107,6 +146,8 @@ class RechupeteScraper(BaseScraper):
             page,
             '.recipe-servings, [class*="raciones"]'
         )
+        
+        self._log(f"✅ Receta extraída: {titulo}")
         
         return RecetaScraped(
             titulo=titulo or "Sin título",

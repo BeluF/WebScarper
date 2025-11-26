@@ -299,3 +299,116 @@ class TestProxyManager:
         
         manager.resetear_fallidos()
         assert manager.cantidad_disponibles == 1
+
+
+class TestBaseScraperHelpers:
+    """Tests para los métodos helper del BaseScraper para contenido dinámico."""
+    
+    def test_log_output(self, capsys):
+        """Verifica que el método _log produce salida correcta."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        scraper._log("Test mensaje")
+        
+        captured = capsys.readouterr()
+        assert "[CookpadScraper]" in captured.out
+        assert "Test mensaje" in captured.out
+    
+    def test_log_con_emojis(self, capsys):
+        """Verifica que el método _log funciona con emojis."""
+        from app.scraper.sites.paulina_cocina import PaulinaCocinaScraper
+        
+        scraper = PaulinaCocinaScraper()
+        scraper._log("✅ Receta extraída")
+        scraper._log("⚠️ Advertencia")
+        
+        captured = capsys.readouterr()
+        assert "✅" in captured.out
+        assert "⚠️" in captured.out
+    
+    def test_scrapers_tienen_metodo_esperar_cualquier_selector(self):
+        """Verifica que todos los scrapers afectados tienen el método helper."""
+        from app.scraper.sites.paulina_cocina import PaulinaCocinaScraper
+        from app.scraper.sites.tasty import TastyScraper
+        from app.scraper.sites.rechupete import RechupeteScraper
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scrapers = [
+            PaulinaCocinaScraper(),
+            TastyScraper(),
+            RechupeteScraper(),
+            CookpadScraper()
+        ]
+        
+        for scraper in scrapers:
+            assert hasattr(scraper, '_esperar_cualquier_selector')
+            assert callable(getattr(scraper, '_esperar_cualquier_selector'))
+    
+    def test_scrapers_tienen_metodo_hacer_scroll(self):
+        """Verifica que todos los scrapers afectados tienen el método de scroll."""
+        from app.scraper.sites.paulina_cocina import PaulinaCocinaScraper
+        from app.scraper.sites.tasty import TastyScraper
+        from app.scraper.sites.rechupete import RechupeteScraper
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scrapers = [
+            PaulinaCocinaScraper(),
+            TastyScraper(),
+            RechupeteScraper(),
+            CookpadScraper()
+        ]
+        
+        for scraper in scrapers:
+            assert hasattr(scraper, '_hacer_scroll_para_lazy_loading')
+            assert callable(getattr(scraper, '_hacer_scroll_para_lazy_loading'))
+    
+    def test_scrapers_tienen_metodo_esperar_contenido(self):
+        """Verifica que todos los scrapers afectados tienen el método de espera."""
+        from app.scraper.sites.paulina_cocina import PaulinaCocinaScraper
+        from app.scraper.sites.tasty import TastyScraper
+        from app.scraper.sites.rechupete import RechupeteScraper
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scrapers = [
+            PaulinaCocinaScraper(),
+            TastyScraper(),
+            RechupeteScraper(),
+            CookpadScraper()
+        ]
+        
+        for scraper in scrapers:
+            assert hasattr(scraper, '_esperar_contenido_cargado')
+            assert callable(getattr(scraper, '_esperar_contenido_cargado'))
+    
+    def test_scraper_paulina_cocina_nombre_sitio(self):
+        """Verifica configuración de PaulinaCocinaScraper."""
+        from app.scraper.sites.paulina_cocina import PaulinaCocinaScraper
+        
+        scraper = PaulinaCocinaScraper()
+        assert scraper.nombre_sitio == "Paulina Cocina"
+        assert "paulinacocina.net" in scraper.dominios_soportados
+    
+    def test_scraper_tasty_nombre_sitio(self):
+        """Verifica configuración de TastyScraper."""
+        from app.scraper.sites.tasty import TastyScraper
+        
+        scraper = TastyScraper()
+        assert scraper.nombre_sitio == "Tasty"
+        assert "tasty.co" in scraper.dominios_soportados
+    
+    def test_scraper_rechupete_nombre_sitio(self):
+        """Verifica configuración de RechupeteScraper."""
+        from app.scraper.sites.rechupete import RechupeteScraper
+        
+        scraper = RechupeteScraper()
+        assert scraper.nombre_sitio == "Recetas de Rechupete"
+        assert "recetasderechupete.com" in scraper.dominios_soportados
+    
+    def test_scraper_cookpad_nombre_sitio(self):
+        """Verifica configuración de CookpadScraper."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert scraper.nombre_sitio == "Cookpad"
+        assert "cookpad.com" in scraper.dominios_soportados
