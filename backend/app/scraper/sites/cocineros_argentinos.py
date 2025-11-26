@@ -5,6 +5,7 @@ Programa de TV argentino con recetas tradicionales.
 Soporta WordPress con estructuras personalizadas típicas de medios argentinos.
 """
 
+import re
 from typing import List, Optional
 from urllib.parse import quote
 from app.scraper.base_scraper import BaseScraper, RecetaScraped
@@ -159,7 +160,7 @@ class CocinerosArgentinosScraper(BaseScraper):
             'article img'
         ]
         
-        atributos_imagen = ['data-src', 'data-lazy-src', 'src', 'data-original']
+        atributos_imagen = ['src', 'data-src', 'data-lazy-src', 'data-original']
         
         for selector in selectores_imagen:
             for atributo in atributos_imagen:
@@ -221,8 +222,10 @@ class CocinerosArgentinosScraper(BaseScraper):
                                         return resultado
                         
                         # Si nextElementSibling no funcionó, buscar ul/ol/p inmediatamente después
+                        # Escapar comillas en el texto para uso seguro en selectores
+                        texto_escapado = texto_encabezado.replace('"', '\\"').replace("'", "\\'")
                         for siguiente_tag in ['ul', 'ol', 'p', 'div']:
-                            selector_siguiente = f'{nivel}:has-text("{texto_encabezado}") + {siguiente_tag}'
+                            selector_siguiente = f'{nivel}:has-text("{texto_escapado}") + {siguiente_tag}'
                             try:
                                 elemento = await page.query_selector(selector_siguiente)
                                 if elemento:
@@ -255,8 +258,6 @@ class CocinerosArgentinosScraper(BaseScraper):
         Returns:
             Lista de líneas de texto limpias.
         """
-        import re
-        
         # Reemplazar variantes de <br>
         texto = re.sub(r'<br\s*/?>', '\n', html_contenido, flags=re.IGNORECASE)
         # Eliminar otros tags HTML
