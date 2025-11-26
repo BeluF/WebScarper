@@ -256,29 +256,33 @@ class CookpadScraper(BaseScraper):
                 if elementos:
                     ingredientes = []
                     for elemento in elementos:
-                        cantidad_elem = await elemento.query_selector(sel_cantidad)
-                        nombre_elem = await elemento.query_selector(sel_nombre)
-                        
-                        cantidad = ""
-                        nombre = ""
-                        
-                        if cantidad_elem:
-                            cantidad = (await cantidad_elem.inner_text()).strip()
-                        if nombre_elem:
-                            nombre = (await nombre_elem.inner_text()).strip()
-                        
-                        # Combinar cantidad + nombre
-                        if cantidad and nombre:
-                            ingredientes.append(f"{cantidad} {nombre}")
-                        elif nombre:
-                            ingredientes.append(nombre)
-                        elif cantidad:
-                            ingredientes.append(cantidad)
-                        else:
-                            # Fallback: usar texto completo del elemento
-                            texto = (await elemento.inner_text()).strip()
-                            if texto:
-                                ingredientes.append(texto)
+                        try:
+                            cantidad_elem = await elemento.query_selector(sel_cantidad)
+                            nombre_elem = await elemento.query_selector(sel_nombre)
+                            
+                            cantidad = ""
+                            nombre = ""
+                            
+                            if cantidad_elem:
+                                cantidad = (await cantidad_elem.inner_text()).strip()
+                            if nombre_elem:
+                                nombre = (await nombre_elem.inner_text()).strip()
+                            
+                            # Combinar cantidad + nombre
+                            if cantidad and nombre:
+                                ingredientes.append(f"{cantidad} {nombre}")
+                            elif nombre:
+                                ingredientes.append(nombre)
+                            elif cantidad:
+                                ingredientes.append(cantidad)
+                            else:
+                                # Fallback: usar texto completo del elemento
+                                texto = (await elemento.inner_text()).strip()
+                                if texto:
+                                    ingredientes.append(texto)
+                        except Exception:
+                            # Si el elemento se vuelve inaccesible, continuar con el siguiente
+                            continue
                     
                     if ingredientes:
                         return ingredientes
@@ -322,16 +326,20 @@ class CookpadScraper(BaseScraper):
                 if elementos:
                     pasos = []
                     for elemento in elementos:
-                        texto_elem = await elemento.query_selector(sel_texto)
-                        if texto_elem:
-                            texto = (await texto_elem.inner_text()).strip()
-                            if texto:
-                                pasos.append(texto)
-                        else:
-                            # Fallback: usar texto completo pero ignorar imágenes
-                            texto = (await elemento.inner_text()).strip()
-                            if texto:
-                                pasos.append(texto)
+                        try:
+                            texto_elem = await elemento.query_selector(sel_texto)
+                            if texto_elem:
+                                texto = (await texto_elem.inner_text()).strip()
+                                if texto:
+                                    pasos.append(texto)
+                            else:
+                                # Fallback: usar texto completo pero ignorar imágenes
+                                texto = (await elemento.inner_text()).strip()
+                                if texto:
+                                    pasos.append(texto)
+                        except Exception:
+                            # Si el elemento se vuelve inaccesible, continuar con el siguiente
+                            continue
                     
                     if pasos:
                         return pasos
