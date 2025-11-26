@@ -59,6 +59,7 @@ class PaulinaCocinaScraper(BaseScraper):
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """
         Extrae los datos de una receta de Paulina Cocina.
+        Espera a que el contenido JavaScript cargue completamente.
         
         Args:
             page: Página de Playwright con el contenido.
@@ -67,6 +68,42 @@ class PaulinaCocinaScraper(BaseScraper):
         Returns:
             RecetaScraped con los datos extraídos.
         """
+        self._log(f"Iniciando extracción de: {url}")
+        
+        # Esperar a que el contenido dinámico cargue
+        await self._esperar_contenido_cargado(page)
+        
+        # Selectores específicos de Paulina Cocina para ingredientes
+        selectores_ingredientes = [
+            '.wprm-recipe-ingredient',
+            '.recipe-ingredients li',
+            '[class*="ingredientes"] li',
+            '.ingredients li'
+        ]
+        
+        # Selectores específicos de Paulina Cocina para pasos
+        selectores_pasos = [
+            '.wprm-recipe-instruction-text',
+            '.wprm-recipe-instruction',
+            '.recipe-instructions li',
+            '[class*="preparacion"] li',
+            '.instructions li'
+        ]
+        
+        # Esperar al menos uno de los selectores de ingredientes
+        selector_ing = await self._esperar_cualquier_selector(
+            page, selectores_ingredientes, timeout=15000
+        )
+        if not selector_ing:
+            self._log("⚠️ No se encontraron selectores de ingredientes")
+        
+        # Esperar al menos uno de los selectores de pasos
+        selector_pasos = await self._esperar_cualquier_selector(
+            page, selectores_pasos, timeout=15000
+        )
+        if not selector_pasos:
+            self._log("⚠️ No se encontraron selectores de pasos")
+        
         # Título
         titulo = await self._extraer_texto_seguro(
             page, 
@@ -107,6 +144,8 @@ class PaulinaCocinaScraper(BaseScraper):
             page,
             '.wprm-recipe-servings-container, [class*="servings"]'
         )
+        
+        self._log(f"✅ Receta extraída: {titulo}")
         
         return RecetaScraped(
             titulo=titulo or "Sin título",

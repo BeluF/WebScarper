@@ -107,6 +107,7 @@ class CookpadScraper(BaseScraper):
     async def _extraer_receta(self, page, url: str) -> RecetaScraped:
         """
         Extrae los datos de una receta de Cookpad.
+        Algunas recetas cargan ingredientes dinámicamente.
         
         Args:
             page: Página de Playwright con el contenido.
@@ -115,6 +116,43 @@ class CookpadScraper(BaseScraper):
         Returns:
             RecetaScraped con los datos extraídos.
         """
+        self._log(f"Iniciando extracción de: {url}")
+        
+        # Esperar a que el contenido dinámico cargue
+        await self._esperar_contenido_cargado(page)
+        
+        # Selectores específicos de Cookpad para ingredientes
+        selectores_ingredientes = [
+            '#ingredients',
+            '#ingredients .ingredient',
+            '[class*="ingredient-list"]',
+            '.ingredient-list li',
+            '#ingredients li'
+        ]
+        
+        # Selectores específicos de Cookpad para pasos
+        selectores_pasos = [
+            '#steps',
+            '#steps .step',
+            '[class*="step-text"]',
+            '.step-text',
+            '#steps li'
+        ]
+        
+        # Esperar al menos uno de los selectores de ingredientes
+        selector_ing = await self._esperar_cualquier_selector(
+            page, selectores_ingredientes, timeout=15000
+        )
+        if not selector_ing:
+            self._log("⚠️ No se encontraron selectores de ingredientes")
+        
+        # Esperar al menos uno de los selectores de pasos
+        selector_pasos = await self._esperar_cualquier_selector(
+            page, selectores_pasos, timeout=15000
+        )
+        if not selector_pasos:
+            self._log("⚠️ No se encontraron selectores de pasos")
+        
         # Título
         titulo = await self._extraer_texto_seguro(
             page, 
@@ -150,6 +188,8 @@ class CookpadScraper(BaseScraper):
             page,
             '[class*="cooking-time"], .cooking-time'
         )
+        
+        self._log(f"✅ Receta extraída: {titulo}")
         
         return RecetaScraped(
             titulo=titulo or "Sin título",
