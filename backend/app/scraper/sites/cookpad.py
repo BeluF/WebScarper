@@ -125,6 +125,7 @@ class CookpadScraper(BaseScraper):
         selectores_ingredientes = [
             '#ingredients',
             '#ingredients .ingredient',
+            '[data-ingredient-id]',
             '[class*="ingredient-list"]',
             '.ingredient-list li',
             '#ingredients li'
@@ -134,6 +135,7 @@ class CookpadScraper(BaseScraper):
         selectores_pasos = [
             '#steps',
             '#steps .step',
+            '[data-step-number]',
             '[class*="step-text"]',
             '.step-text',
             '#steps li'
@@ -165,12 +167,8 @@ class CookpadScraper(BaseScraper):
             '[class*="recipe-story"], .mb-sm'
         )
         
-        # Imagen
-        imagen_url = await self._extraer_atributo_seguro(
-            page,
-            'picture img, img[class*="recipe-image"], .recipe-main-photo img',
-            'src'
-        )
+        # Imagen - buscar src y data-src para lazy loading
+        imagen_url = await self._extraer_imagen_con_lazy_loading(page)
         
         # Ingredientes
         ingredientes = await self._extraer_ingredientes(page)
@@ -178,15 +176,15 @@ class CookpadScraper(BaseScraper):
         # Pasos
         pasos = await self._extraer_pasos(page)
         
-        # Información adicional
+        # Información adicional - selectores más específicos
         porciones = await self._extraer_texto_seguro(
             page,
-            '[class*="serving"], .servings'
+            '#servings, .serving-size, [class*="serving"], .servings'
         )
         
         tiempo_coccion = await self._extraer_texto_seguro(
             page,
-            '[class*="cooking-time"], .cooking-time'
+            '#cooking-time, [class*="cooking-time"], .cooking-time'
         )
         
         self._log(f"✅ Receta extraída: {titulo}")
@@ -203,14 +201,102 @@ class CookpadScraper(BaseScraper):
             porciones=porciones
         )
     
+    async def _extraer_imagen_con_lazy_loading(self, page) -> str:
+        """
+        Extrae la URL de la imagen, soportando lazy loading (data-src).
+        
+        Args:
+            page: Página de Playwright.
+            
+        Returns:
+            URL de la imagen o cadena vacía.
+        """
+        selectores_imagen = [
+            '#recipe-image img',
+            '.recipe-image img',
+            'picture img',
+            'img[class*="recipe-image"]',
+            '.recipe-main-photo img'
+        ]
+        
+        for selector in selectores_imagen:
+            try:
+                elemento = await page.query_selector(selector)
+                if elemento:
+                    # Primero intentar data-src (lazy loading)
+                    data_src = await elemento.get_attribute('data-src')
+                    if data_src and data_src.strip():
+                        return data_src.strip()
+                    # Si no hay data-src, usar src
+                    src = await elemento.get_attribute('src')
+                    if src and src.strip():
+                        return src.strip()
+            except Exception:
+                continue
+        
+        return ""
+    
     async def _extraer_ingredientes(self, page) -> List[str]:
-        """Extrae la lista de ingredientes."""
-        # Intentar diferentes selectores
+        """
+        Extrae la lista de ingredientes.
+        Combina cantidad + nombre cuando están separados.
+        """
+        # Selectores para ingredientes con cantidad y nombre separados
+        selectores_combinados = [
+            ('#ingredients li', '.ingredient-quantity', '.ingredient-name'),
+            ('.ingredient-list li', '.ingredient-quantity', '.ingredient-name'),
+            ('[data-ingredient-id]', '.ingredient-quantity', '.ingredient-name'),
+            ('.ingredient', '.ingredient-quantity', '.ingredient-name'),
+        ]
+        
+        # Intentar extraer con cantidad y nombre separados
+        for contenedor, sel_cantidad, sel_nombre in selectores_combinados:
+            try:
+                elementos = await page.query_selector_all(contenedor)
+                if elementos:
+                    ingredientes = []
+                    for elemento in elementos:
+                        try:
+                            cantidad_elem = await elemento.query_selector(sel_cantidad)
+                            nombre_elem = await elemento.query_selector(sel_nombre)
+                            
+                            cantidad = ""
+                            nombre = ""
+                            
+                            if cantidad_elem:
+                                cantidad = (await cantidad_elem.inner_text()).strip()
+                            if nombre_elem:
+                                nombre = (await nombre_elem.inner_text()).strip()
+                            
+                            # Combinar cantidad + nombre
+                            if cantidad and nombre:
+                                ingredientes.append(f"{cantidad} {nombre}")
+                            elif nombre:
+                                ingredientes.append(nombre)
+                            elif cantidad:
+                                ingredientes.append(cantidad)
+                            else:
+                                # Fallback: usar texto completo del elemento
+                                texto = (await elemento.inner_text()).strip()
+                                if texto:
+                                    ingredientes.append(texto)
+                        except Exception:
+                            # Si el elemento se vuelve inaccesible, continuar con el siguiente
+                            continue
+                    
+                    if ingredientes:
+                        return ingredientes
+            except Exception:
+                continue
+        
+        # Fallback: selectores simples sin separación
         selectores = [
+            '[data-ingredient-id]',
             '#ingredients .ingredient',
             '[class*="ingredient-list"] li',
             '.ingredient-list li',
-            '#ingredients li'
+            '#ingredients li',
+            '#ingredients div'
         ]
         
         for selector in selectores:
@@ -221,11 +307,51 @@ class CookpadScraper(BaseScraper):
         return []
     
     async def _extraer_pasos(self, page) -> List[str]:
-        """Extrae los pasos de preparación."""
+        """
+        Extrae los pasos de preparación.
+        Solo extrae el texto del paso, no las imágenes.
+        """
+        # Selectores para pasos con estructura específica
+        selectores_con_texto = [
+            ('#steps li', '.step-text'),
+            ('[data-step-number]', '.step-text'),
+            ('.step', '.step-text'),
+            ('#steps .step', '.step-text'),
+        ]
+        
+        # Intentar extraer solo el texto del paso
+        for contenedor, sel_texto in selectores_con_texto:
+            try:
+                elementos = await page.query_selector_all(contenedor)
+                if elementos:
+                    pasos = []
+                    for elemento in elementos:
+                        try:
+                            texto_elem = await elemento.query_selector(sel_texto)
+                            if texto_elem:
+                                texto = (await texto_elem.inner_text()).strip()
+                                if texto:
+                                    pasos.append(texto)
+                            else:
+                                # Fallback: usar texto completo pero ignorar imágenes
+                                texto = (await elemento.inner_text()).strip()
+                                if texto:
+                                    pasos.append(texto)
+                        except Exception:
+                            # Si el elemento se vuelve inaccesible, continuar con el siguiente
+                            continue
+                    
+                    if pasos:
+                        return pasos
+            except Exception:
+                continue
+        
+        # Fallback: selectores simples
         selectores = [
+            '[data-step-number]',
             '#steps .step',
-            '[class*="step-text"]',
             '.step-text',
+            '[class*="step-text"]',
             '#steps li'
         ]
         
