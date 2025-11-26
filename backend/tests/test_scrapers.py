@@ -412,3 +412,64 @@ class TestBaseScraperHelpers:
         scraper = CookpadScraper()
         assert scraper.nombre_sitio == "Cookpad"
         assert "cookpad.com" in scraper.dominios_soportados
+
+
+class TestCookpadScraperMejoras:
+    """Tests para las mejoras del scraper de Cookpad."""
+    
+    def test_cookpad_tiene_metodo_extraer_imagen_lazy_loading(self):
+        """Verifica que CookpadScraper tiene método para lazy loading de imágenes."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_imagen_con_lazy_loading')
+        assert callable(getattr(scraper, '_extraer_imagen_con_lazy_loading'))
+    
+    def test_cookpad_tiene_metodo_extraer_ingredientes(self):
+        """Verifica que CookpadScraper tiene método para extraer ingredientes."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_ingredientes')
+        assert callable(getattr(scraper, '_extraer_ingredientes'))
+    
+    def test_cookpad_tiene_metodo_extraer_pasos(self):
+        """Verifica que CookpadScraper tiene método para extraer pasos."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_pasos')
+        assert callable(getattr(scraper, '_extraer_pasos'))
+    
+    def test_cookpad_tiene_metodo_extraer_receta(self):
+        """Verifica que CookpadScraper tiene método para extraer recetas."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_receta')
+        assert callable(getattr(scraper, '_extraer_receta'))
+    
+    def test_cookpad_tiene_metodo_extraer_lista_recetas(self):
+        """Verifica que CookpadScraper tiene método para extraer lista de recetas."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        assert hasattr(scraper, '_extraer_lista_recetas')
+        assert callable(getattr(scraper, '_extraer_lista_recetas'))
+    
+    def test_cookpad_url_busqueda_con_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda con palabra clave."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        url = scraper._construir_url_busqueda("empanadas")
+        assert "cookpad.com/ar/buscar" in url
+        assert "empanadas" in url
+    
+    def test_cookpad_url_busqueda_sin_palabra_clave(self):
+        """Verifica construcción de URL de búsqueda sin palabra clave."""
+        from app.scraper.sites.cookpad import CookpadScraper
+        
+        scraper = CookpadScraper()
+        url = scraper._construir_url_busqueda(None)
+        assert "cookpad.com/ar/buscar/populares" in url
